@@ -26,11 +26,14 @@ android {
     signingConfigs {
         release {
             def ksPath = System.getenv("ANDROID_KEYSTORE_PATH")
-            if (ksPath != null && !ksPath.isEmpty() && file(ksPath).exists()) {
+            def ksPass = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            def kAlias = System.getenv("ANDROID_KEY_ALIAS")
+            def kPass = System.getenv("ANDROID_KEY_PASSWORD")
+            if (ksPath != null && !ksPath.isEmpty()) {
                 storeFile file(ksPath)
-                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                keyAlias System.getenv("ANDROID_KEY_ALIAS")
-                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                storePassword ksPass
+                keyAlias kAlias
+                keyPassword kPass
             }
         }
     }
@@ -51,9 +54,25 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            if (signingConfigs.release.storeFile != null) {
-                signingConfig signingConfigs.release
-            }
+            signingConfig signingConfigs.release
+        }
+    }
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    def isReleaseTask = taskGraph.allTasks.any { task ->
+        task.name.toLowerCase().contains("release") &&
+        (task.name.toLowerCase().contains("assemble") || task.name.toLowerCase().contains("bundle") || task.name.toLowerCase().contains("package"))
+    }
+    if (isReleaseTask) {
+        def ksPath = System.getenv("ANDROID_KEYSTORE_PATH")
+        def ksPass = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+        def kAlias = System.getenv("ANDROID_KEY_ALIAS")
+        def kPass = System.getenv("ANDROID_KEY_PASSWORD")
+        if (!ksPath || !file(ksPath).exists() || !ksPass || !kAlias || !kPass) {
+            throw new GradleException(
+                "Release signing configuration is incomplete. Ensure ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD are set."
+            )
         }
     }
 }

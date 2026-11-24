@@ -30,6 +30,10 @@ on:
         default: 'Performans iyileştirmeleri ve hata düzeltmeleri.'
         type: string
 
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -37,13 +41,37 @@ jobs:
       contents: read
 
     steps:
+      - name: Pre-Flight Validate Required Signing & Release Secrets
+        shell: bash
+        env:
+          HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+          HAS_STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD != '' }}
+          HAS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS != '' }}
+          HAS_KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD != '' }}
+          HAS_PUSH_TOKEN: ${{ secrets.RELEASES_PUSH_TOKEN != '' }}
+        run: |
+          set +x
+          MISSING=""
+          [ "$HAS_KEYSTORE" != "true" ] && MISSING="$MISSING ANDROID_KEYSTORE_BASE64"
+          [ "$HAS_STORE_PASS" != "true" ] && MISSING="$MISSING ANDROID_KEYSTORE_PASSWORD"
+          [ "$HAS_ALIAS" != "true" ] && MISSING="$MISSING ANDROID_KEY_ALIAS"
+          [ "$HAS_KEY_PASS" != "true" ] && MISSING="$MISSING ANDROID_KEY_PASSWORD"
+          [ "$HAS_PUSH_TOKEN" != "true" ] && MISSING="$MISSING RELEASES_PUSH_TOKEN"
+
+          if [ -n "$MISSING" ]; then
+            echo "::error::Eksik GitHub Secrets:$MISSING. Derleme başlatılmadan durduruldu; önceki yayınlara dokunulmadı."
+            exit 1
+          fi
+          echo "Tüm zorunlu imzalama ve yayın secret'ları doğrulandı."
+
       - name: Checkout private source repository (mesai_depo)
         uses: actions/checkout@v4
 
-      - name: Resolve version metadata
+      - name: Resolve and validate version metadata
         id: meta
         shell: bash
         run: |
+          set -euo pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION_NAME="${{ inputs.version_name }}"
             VERSION_CODE="${{ inputs.version_code }}"
@@ -61,6 +89,15 @@ jobs:
             MANDATORY="false"
             MIN_CODE="10000"
             NOTES=$(git log -1 --pretty=%B | tr '\r' ' ')
+          fi
+
+          if ! [[ "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][A-Za-z0-9._-]+)?$ ]]; then
+            echo "::error::Geçersiz version_name formatı: $VERSION_NAME"
+            exit 1
+          fi
+          if ! [[ "$VERSION_CODE" =~ ^[0-9]+$ ]] || [ "$VERSION_CODE" -le 0 ]; then
+            echo "::error::Geçersiz version_code: $VERSION_CODE"
+            exit 1
           fi
 
           echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
@@ -94,59 +131,91 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build Direct Web Assets & Sync Capacitor Android
+      - name: Decode & Verify Permanent Android Release Keystore
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set +x
+          set -euo pipefail
+          KEYSTORE_PATH="${{ github.workspace }}/android/app/release.keystore"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '\n\r ' | base64 -d > "$KEYSTORE_PATH"
+          chmod 600 "$KEYSTORE_PATH"
+
+          # Verify keystore integrity and alias existence without logging secrets
+          keytool -list \
+            -keystore "$KEYSTORE_PATH" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" > /dev/null
+          echo "Kalıcı release keystore doğrulandı."
+
+      - name: Build Direct Web Assets & Signed Direct Release APK
         env:
           ANDROID_VERSION_NAME: ${{ steps.meta.outputs.version_name }}
           ANDROID_VERSION_CODE: ${{ steps.meta.outputs.version_code }}
           VITE_DISTRIBUTION_CHANNEL: direct
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/app/release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           npm run build
           npx cap sync android
-
-      - name: Decode Android Keystore (if configured)
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
-          else
-            echo "WARNING: ANDROID_KEYSTORE_BASE64 secret not set; generating ephemeral CI signing key for dry run."
-            keytool -genkeypair -v -keystore android/app/release.keystore \
-              -alias mesai -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'change-me-store' }}" \
-              -keypass "${{ secrets.ANDROID_KEY_PASSWORD || 'change-me-key' }}" \
-              -dname "CN=MESAI, OU=Mobile, O=MESAI, L=Istanbul, C=TR"
-          fi
-
-      - name: Build Signed Direct Release APK
-        env:
-          ANDROID_VERSION_NAME: ${{ steps.meta.outputs.version_name }}
-          ANDROID_VERSION_CODE: ${{ steps.meta.outputs.version_code }}
-          ANDROID_KEYSTORE_PATH: release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'change-me-store' }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'mesai' }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || 'change-me-key' }}
-        run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDirectRelease --no-daemon
 
-      - name: Build Google Play Assets & Signed AAB
+      - name: Build Play Web Assets & Signed Google Play AAB
         env:
           ANDROID_VERSION_NAME: ${{ steps.meta.outputs.version_name }}
           ANDROID_VERSION_CODE: ${{ steps.meta.outputs.version_code }}
           VITE_DISTRIBUTION_CHANNEL: play
-          ANDROID_KEYSTORE_PATH: release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'change-me-store' }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'mesai' }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || 'change-me-key' }}
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/app/release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           npm run build
           npx cap sync android
           cd android
+          chmod +x gradlew
           ./gradlew bundlePlayRelease --no-daemon
 
-      - name: Prepare APK Artifact & Generate latest.json Manifest
+      - name: Verify APK & AAB Signatures and Identical Signing Certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK_SRC=$(find android/app/build/outputs/apk/direct/release -name "*.apk" | head -n 1)
+          AAB_SRC=$(find android/app/build/outputs/bundle/playRelease -name "*.aab" | head -n 1)
+
+          if [ -z "$APK_SRC" ] || [ -z "$AAB_SRC" ]; then
+            echo "::error::Direct APK veya Play AAB çıktısı bulunamadı."
+            exit 1
+          fi
+
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name "apksigner" | sort -V | tail -n 1)
+          if [ -z "$APKSIGNER" ]; then
+            echo "::error::Android build-tools apksigner bulunamadı."
+            exit 1
+          fi
+
+          "$APKSIGNER" verify --print-certs "$APK_SRC" > apk-certs.txt
+          jarsigner -verify -strict "$AAB_SRC" > /dev/null
+          keytool -printcert -jarfile "$AAB_SRC" > aab-certs.txt
+
+          APK_SHA=$(grep -m1 "SHA-256 digest:" apk-certs.txt | awk '{print tolower($NF)}' | tr -d ':')
+          AAB_SHA=$(grep -m1 "SHA256:" aab-certs.txt | awk '{print tolower($NF)}' | tr -d ':')
+
+          if [ -z "$APK_SHA" ] || [ "$APK_SHA" != "$AAB_SHA" ]; then
+            echo "::error::APK ve AAB imzalama sertifikaları eşleşmiyor veya imzasız!"
+            exit 1
+          fi
+          echo "APK ve AAB aynı kalıcı sertifika ile imzalandı (SHA-256: $APK_SHA)."
+          rm -f apk-certs.txt aab-certs.txt
+
+      - name: Prepare Direct APK & Generate Validated latest.json Manifest
         id: pkg
         shell: bash
         env:
@@ -156,20 +225,16 @@ jobs:
           MIN_CODE: ${{ steps.meta.outputs.min_code }}
           RELEASE_NOTES: ${{ steps.meta.outputs.release_notes }}
         run: |
+          set -euo pipefail
           mkdir -p release-out
           APK_SRC=$(find android/app/build/outputs/apk/direct/release -name "*.apk" | head -n 1)
-          if [ -z "$APK_SRC" ]; then
-            echo "Direct APK output not found!"
-            exit 1
-          fi
-
           APK_NAME="mesai-v${VERSION_NAME}-direct-release.apk"
           cp "$APK_SRC" "release-out/${APK_NAME}"
 
-          SHA256=$(sha256sum "release-out/${APK_NAME}" | awk '{print $1}')
-          SIZE_BYTES=$(stat -c%s "release-out/${APK_NAME}")
-          PUBLISHED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          APK_URL="https://github.com/ipflixxx/mesai_releases/releases/download/v${VERSION_NAME}/${APK_NAME}"
+          export SHA256=$(sha256sum "release-out/${APK_NAME}" | awk '{print $1}')
+          export SIZE_BYTES=$(stat -c%s "release-out/${APK_NAME}")
+          export PUBLISHED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          export APK_URL="https://github.com/ipflixxx/mesai_releases/releases/download/v${VERSION_NAME}/${APK_NAME}"
 
           echo "${SHA256}  ${APK_NAME}" > "release-out/${APK_NAME}.sha256"
 
@@ -191,42 +256,56 @@ jobs:
               sizeBytes: Number(process.env.SIZE_BYTES),
               releaseNotes: notes.length ? notes : ["Performans iyileştirmeleri ve hata düzeltmeleri."]
             };
+            if (!/^[a-f0-9]{64}$/.test(manifest.sha256) || manifest.sizeBytes <= 0) {
+              throw new Error("Manifest validation failed");
+            }
             fs.writeFileSync("release-out/latest.json", JSON.stringify(manifest, null, 2) + "\n");
-          ' APK_URL="$APK_URL" SHA256="$SHA256" SIZE_BYTES="$SIZE_BYTES" PUBLISHED_AT="$PUBLISHED_AT"
+          '
 
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
           cat release-out/latest.json
 
-      - name: Upload Play Store AAB to Private Build Artifacts
+      - name: Upload Play Store Signed AAB to Private Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: mesai-v${{ steps.meta.outputs.version_name }}-play-aab
           path: android/app/build/outputs/bundle/playRelease/*.aab
           retention-days: 30
 
-      - name: Publish Direct APK & latest.json to Public Repository (ipflixxx/mesai_releases)
+      - name: Publish Direct APK & latest.json Atomically to ipflixxx/mesai_releases
         env:
           GH_TOKEN: ${{ secrets.RELEASES_PUSH_TOKEN }}
           VERSION_NAME: ${{ steps.meta.outputs.version_name }}
           APK_NAME: ${{ steps.pkg.outputs.apk_name }}
         run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "RELEASES_PUSH_TOKEN secret is not configured. Skipping push to ipflixxx/mesai_releases."
-            exit 1
+          set +x
+          set -euo pipefail
+
+          # 1. Upload Direct APK and checksum to GitHub Release first
+          if gh release view "v${VERSION_NAME}" --repo ipflixxx/mesai_releases > /dev/null 2>&1; then
+            gh release upload "v${VERSION_NAME}" \
+              "release-out/${APK_NAME}" \
+              "release-out/${APK_NAME}.sha256" \
+              --repo ipflixxx/mesai_releases --clobber
+          else
+            gh release create "v${VERSION_NAME}" \
+              "release-out/${APK_NAME}" \
+              "release-out/${APK_NAME}.sha256" \
+              --repo ipflixxx/mesai_releases \
+              --title "MESAİ v${VERSION_NAME}" \
+              --notes-file <(node -e 'const m=require("./release-out/latest.json"); console.log(m.releaseNotes.map(n=>"- "+n).join("\n"));')
           fi
 
-          gh release create "v${VERSION_NAME}" \
-            "release-out/${APK_NAME}" \
-            "release-out/${APK_NAME}.sha256" \
-            --repo ipflixxx/mesai_releases \
-            --title "MESAİ v${VERSION_NAME}" \
-            --notes-file <(node -e 'const m=require("./release-out/latest.json"); console.log(m.releaseNotes.map(n=>"- "+n).join("\n"));') \
-            || gh release upload "v${VERSION_NAME}" \
-               "release-out/${APK_NAME}" \
-               "release-out/${APK_NAME}.sha256" \
-               --repo ipflixxx/mesai_releases --clobber
+          # 2. Verify release asset is present before updating latest.json on main
+          gh release view "v${VERSION_NAME}" --repo ipflixxx/mesai_releases --json assets \
+            | node -e '
+                const d = JSON.parse(require("fs").readFileSync(0, "utf8"));
+                const ok = (d.assets || []).some((a) => a.name === process.env.APK_NAME);
+                if (!ok) throw new Error("Uploaded APK asset verification failed!");
+              '
 
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/ipflixxx/mesai_releases.git" releases-repo
+          # 3. Update latest.json on main branch only after APK release is verified
+          git clone --branch main --single-branch "https://x-access-token:${GH_TOKEN}@github.com/ipflixxx/mesai_releases.git" releases-repo
           cp release-out/latest.json releases-repo/latest.json
           cd releases-repo
           git config user.name "mesai-release-bot"
@@ -236,3 +315,10 @@ jobs:
             git commit -m "chore(release): publish v${VERSION_NAME}"
             git push origin main
           fi
+
+      - name: Securely Cleanup Keystore & Temp Files
+        if: always()
+        shell: bash
+        run: |
+          rm -f "${{ github.workspace }}/android/app/release.keystore"
+          rm -rf release-out releases-repo apk-certs.txt aab-certs.txt
