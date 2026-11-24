@@ -1,0 +1,6 @@
+{
+  "name": "MESAİ",
+  "description": "Zamanını takip et, emeğinin karşılığını gör. Kişisel mesai ve kazanç takip uygulaması.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
