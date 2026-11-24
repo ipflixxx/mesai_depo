@@ -187,8 +187,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK_SRC=$(find android/app/build/outputs/apk/direct/release -name "*.apk" | head -n 1)
-          AAB_SRC=$(find android/app/build/outputs/bundle/playRelease -name "*.aab" | head -n 1)
+          APK_SRC=$(find android/app/build/outputs/apk/direct/release -name "*.apk" -print -quit)
+          AAB_SRC=$(find android/app/build/outputs/bundle/playRelease -name "*.aab" -print -quit)
 
           if [ -z "$APK_SRC" ] || [ -z "$AAB_SRC" ]; then
             echo "::error::Direct APK veya Play AAB çıktısı bulunamadı."
@@ -227,7 +227,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-out
-          APK_SRC=$(find android/app/build/outputs/apk/direct/release -name "*.apk" | head -n 1)
+          APK_SRC=$(find android/app/build/outputs/apk/direct/release -name "*.apk" -print -quit)
           APK_NAME="mesai-v${VERSION_NAME}-direct-release.apk"
           cp "$APK_SRC" "release-out/${APK_NAME}"
 
