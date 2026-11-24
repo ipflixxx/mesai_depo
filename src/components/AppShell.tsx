@@ -1,7 +1,8 @@
 import React from 'react';
 import { BarChart3, Calculator, Home, Settings, Wallet } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { OfflineBanner } from './PWAInstallButton';
+import { useMesai } from '../context/MesaiContext';
+import { AndroidUpdateModal } from './AndroidUpdateModal';
 import { WorkEntryModal } from './WorkEntryModal';
 
 const NAV_ITEMS = [
@@ -13,11 +14,12 @@ const NAV_ITEMS = [
 ];
 
 export const AppShell: React.FC = () => {
+  const { runtimeInfo, updateResult, isUpdateModalOpen, closeUpdateModal } = useMesai();
+
   return (
     <div className="min-h-screen bg-[#F6F8F6] dark:bg-[#101211] text-[#17221B] dark:text-[#F4F7F5] flex flex-col">
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        <OfflineBanner />
         <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 pt-5 pb-24 sm:pt-7">
           <Outlet />
         </main>
@@ -59,6 +61,12 @@ export const AppShell: React.FC = () => {
       </nav>
 
       <WorkEntryModal />
+      <AndroidUpdateModal
+        isOpen={isUpdateModalOpen}
+        runtimeInfo={runtimeInfo}
+        updateResult={updateResult}
+        onClose={closeUpdateModal}
+      />
     </div>
   );
 };

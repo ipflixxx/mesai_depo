@@ -5,13 +5,13 @@ import {
   FileSpreadsheet,
   FileText,
   Moon,
+  RefreshCw,
   RotateCcw,
   ShieldCheck,
   Smartphone,
   Sun,
   Upload,
 } from 'lucide-react';
-import { PWAInstallButton } from '../components/PWAInstallButton';
 import { useMesai } from '../context/MesaiContext';
 import {
   CurrencyCode,
@@ -28,10 +28,22 @@ import {
 } from '../utils/exportUtils';
 
 export const SettingsPage: React.FC = () => {
-  const { settings, entries, updateSettings, restoreBackup, resetAllData } = useMesai();
+  const {
+    settings,
+    entries,
+    runtimeInfo,
+    updateResult,
+    isCheckingUpdate,
+    checkForUpdates,
+    openUpdateModal,
+    updateSettings,
+    restoreBackup,
+    resetAllData,
+  } = useMesai();
 
   const [form, setForm] = useState(settings);
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
+  const [updateCheckMessage, setUpdateCheckMessage] = useState<string | null>(null);
   const [restoreStatus, setRestoreStatus] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -87,6 +99,23 @@ export const SettingsPage: React.FC = () => {
   const handlePDFReport = () => {
     const now = new Date();
     exportMonthlyPDFReport(entries, settings, now.getFullYear(), now.getMonth());
+  };
+
+  const handleCheckUpdate = async () => {
+    setUpdateCheckMessage(null);
+    const res = await checkForUpdates(false);
+    if (res.hasUpdate) {
+      setUpdateCheckMessage(
+        res.manifest
+          ? `Yeni sürüm bulundu: v${res.manifest.versionName}`
+          : 'Google Play üzerinde yeni sürüm hazır.'
+      );
+      openUpdateModal();
+    } else if (res.error) {
+      setUpdateCheckMessage(res.error);
+    } else {
+      setUpdateCheckMessage(`Uygulamanız güncel (v${res.currentVersionName}).`);
+    }
   };
 
   const hourlyRate = calculateHourlyRate(form);
@@ -507,11 +536,14 @@ export const SettingsPage: React.FC = () => {
             <div>
               <div className="font-medium text-[#17221B] dark:text-[#F4F7F5]">Hakkında</div>
               <p className="text-xs text-[#77827B] dark:text-[#929B95] mt-0.5">
-                MESAİ — Zamanını takip et, emeğinin karşılığını gör.
+                MESAİ Android —{' '}
+                {runtimeInfo.channel === 'play'
+                  ? 'Google Play Dağıtımı'
+                  : 'Doğrudan Dağıtım (APK)'}
               </p>
             </div>
-            <span className="font-mono text-xs text-[#77827B] dark:text-[#929B95] shrink-0">
-              v1.0.0
+            <span className="font-mono text-xs text-[#77827B] dark:text-[#929B95] shrink-0 tabular-nums">
+              v{runtimeInfo.versionName} ({runtimeInfo.versionCode})
             </span>
           </div>
 
@@ -526,10 +558,28 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
 
+        {updateCheckMessage && (
+          <p className="text-xs font-medium text-[#159B61] dark:text-[#39D98A]">
+            {updateCheckMessage}
+          </p>
+        )}
+
         <div className="pt-2 flex flex-col sm:flex-row gap-3">
-          <div className="sm:flex-1">
-            <PWAInstallButton variant="full" />
-          </div>
+          <button
+            type="button"
+            disabled={isCheckingUpdate}
+            onClick={() => void handleCheckUpdate()}
+            className="sm:flex-1 min-h-[44px] px-4 rounded-xl bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211] text-xs font-semibold flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-60"
+          >
+            <RefreshCw className={`w-4 h-4 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
+            <span>
+              {isCheckingUpdate
+                ? 'Sürüm Kontrol Ediliyor...'
+                : updateResult?.hasUpdate
+                ? 'Yeni Güncellemeyi Görüntüle'
+                : 'Güncellemeleri Denetle'}
+            </span>
+          </button>
 
           <button
             type="button"

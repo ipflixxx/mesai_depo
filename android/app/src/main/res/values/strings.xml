@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MESAİ</string>
+    <string name="title_activity_main">MESAİ</string>
+    <string name="package_name">com.mesai.app</string>
+    <string name="custom_url_scheme">com.mesai.app</string>
+</resources>

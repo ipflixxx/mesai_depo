@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MonthlyCalendarGrid } from '../components/MonthlyCalendarGrid';
-import { PWAInstallButton } from '../components/PWAInstallButton';
 import { useMesai } from '../context/MesaiContext';
 import {
   calculateHourlyRate,
@@ -85,7 +84,6 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <PWAInstallButton variant="compact" />
           <Link
             to="/ayarlar"
             aria-label="Ayarlar"

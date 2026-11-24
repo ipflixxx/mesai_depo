@@ -1,11 +1,17 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { APP_ID, APP_VERSION_CODE, APP_VERSION_NAME, DEFAULT_DISTRIBUTION_CHANNEL } from '../config/appInfo';
 import { useTheme } from '../hooks/useTheme';
+import {
+  checkForAndroidUpdate,
+  getAppRuntimeInfo,
+} from '../services/androidUpdateService';
 import {
   loadEntriesSync,
   loadSettingsSync,
   storageService,
 } from '../services/storageService';
 import { UserSettings, WorkEntry, WorkEntryInput } from '../types/mesai';
+import { AppRuntimeInfo, UpdateCheckResult } from '../types/update';
 import {
   DEFAULT_SETTINGS,
   getTodayDateString,
@@ -23,6 +29,13 @@ interface MesaiContextValue {
   entries: WorkEntry[];
   isHydrating: boolean;
   modalState: EntryModalState;
+  runtimeInfo: AppRuntimeInfo;
+  updateResult: UpdateCheckResult | null;
+  isCheckingUpdate: boolean;
+  isUpdateModalOpen: boolean;
+  checkForUpdates: (silent?: boolean) => Promise<UpdateCheckResult>;
+  openUpdateModal: () => void;
+  closeUpdateModal: () => void;
   openNewEntryModal: (date?: string) => void;
   openEditEntryModal: (entry: WorkEntry) => void;
   closeEntryModal: () => void;
@@ -47,6 +60,18 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     defaultDate: getTodayDateString(),
   });
 
+  const [runtimeInfo, setRuntimeInfo] = useState<AppRuntimeInfo>({
+    appId: APP_ID,
+    versionName: APP_VERSION_NAME,
+    versionCode: APP_VERSION_CODE,
+    channel: DEFAULT_DISTRIBUTION_CHANNEL,
+    isNativeAndroid: false,
+  });
+  const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(null);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const initialUpdateCheckedRef = useRef(false);
+
   useTheme(settings.themeMode);
 
   useEffect(() => {
@@ -66,6 +91,41 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       active = false;
     };
   }, []);
+
+  const checkForUpdates = useCallback(async (silent = false): Promise<UpdateCheckResult> => {
+    setIsCheckingUpdate(true);
+    try {
+      const info = await getAppRuntimeInfo();
+      setRuntimeInfo(info);
+      const res = await checkForAndroidUpdate(info);
+      setUpdateResult(res);
+      if (res.hasUpdate) {
+        setIsUpdateModalOpen(true);
+      } else if (!silent && res.error) {
+        // Keep error accessible via updateResult.error for manual check UI
+      }
+      return res;
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isHydrating || initialUpdateCheckedRef.current) return;
+    initialUpdateCheckedRef.current = true;
+    void checkForUpdates(true);
+  }, [isHydrating, checkForUpdates]);
+
+  const openUpdateModal = useCallback(() => {
+    if (updateResult?.hasUpdate) {
+      setIsUpdateModalOpen(true);
+    }
+  }, [updateResult]);
+
+  const closeUpdateModal = useCallback(() => {
+    if (updateResult?.mandatory) return;
+    setIsUpdateModalOpen(false);
+  }, [updateResult]);
 
   const openNewEntryModal = useCallback((date?: string) => {
     setModalState({
@@ -204,6 +264,13 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         entries,
         isHydrating,
         modalState,
+        runtimeInfo,
+        updateResult,
+        isCheckingUpdate,
+        isUpdateModalOpen,
+        checkForUpdates,
+        openUpdateModal,
+        closeUpdateModal,
         openNewEntryModal,
         openEditEntryModal,
         closeEntryModal,

@@ -1,16 +1,20 @@
 {
-  "name": "react-example",
+  "name": "mesai-android",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
+    "cap:sync": "vite build && cap sync android",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
@@ -22,8 +26,7 @@
     "react-dom": "^19.0.1",
     "react-router-dom": "^7.18.7",
     "recharts": "^3.11.1",
-    "vite": "^8.3.0",
-    "vite-plugin-pwa": "^2.0.0"
+    "vite": "^8.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
