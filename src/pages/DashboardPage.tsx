@@ -105,6 +105,7 @@ export const DashboardPage: React.FC = () => {
         onPrevMonth={handlePrevMonth}
         onNextMonth={handleNextMonth}
         onJumpToday={handleJumpToday}
+        showHoursInCells={true}
       />
 
       {/* 2. Bu Ayki Toplam Kazanç Kartı (Hemen Tablonun Altında) */}

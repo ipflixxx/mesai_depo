@@ -29,6 +29,12 @@ export interface MesaiUpdaterPlugin {
     versionName: string;
   }): Promise<ApkInstallResult>;
   openUnknownSourcesSettings(): Promise<void>;
+  exportFile(options: {
+    filename: string;
+    mimeType: string;
+    base64Data: string;
+  }): Promise<{ shared: boolean }>;
+  setSystemBarAppearance(options: { isDark: boolean }): Promise<void>;
   addListener(
     eventName: 'updateDownloadProgress',
     listenerFunc: (event: UpdateProgressEvent) => void

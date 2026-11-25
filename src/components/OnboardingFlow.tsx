@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Moon, Smartphone, Sun } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMesai } from '../context/MesaiContext';
@@ -28,6 +28,24 @@ export const OnboardingFlow: React.FC = () => {
     form.monthlySalary > 0 ? String(form.monthlySalary) : ''
   );
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.__mesaiHandleAndroidBack = () => {
+      if (isDone) {
+        setIsDone(false);
+        return 'handled';
+      }
+      if (step > 1) {
+        setError(null);
+        setStep((s) => s - 1);
+        return 'handled';
+      }
+      return 'exit';
+    };
+    return () => {
+      delete window.__mesaiHandleAndroidBack;
+    };
+  }, [isDone, step]);
 
   const handleThemeSelect = (mode: ThemeMode) => {
     setForm((prev) => ({ ...prev, themeMode: mode }));
@@ -97,7 +115,7 @@ export const OnboardingFlow: React.FC = () => {
 
   if (isDone) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F6F8F6] dark:bg-[#101211] px-4 py-8">
+      <div className="min-h-screen flex items-center justify-center bg-[#F6F8F6] dark:bg-[#101211] px-4 py-8 pt-safe pb-safe">
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -148,7 +166,7 @@ export const OnboardingFlow: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-[#F6F8F6] dark:bg-[#101211] px-4 py-6 sm:py-10">
+    <div className="min-h-screen flex flex-col justify-between bg-[#F6F8F6] dark:bg-[#101211] px-4 py-6 sm:py-10 pt-safe pb-safe">
       <div className="w-full max-w-lg mx-auto">
         {/* Brand & Progress */}
         <div className="flex items-center justify-between mb-8">

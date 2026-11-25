@@ -118,6 +118,9 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Run TypeScript code check
+        run: npm run lint
+
       - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
@@ -253,34 +256,79 @@ jobs:
       - name: Verify APK & AAB Signatures and Identical Signing Certificate
         shell: bash
         run: |
+          set +x
           set -euo pipefail
-          APK_SRC=$(find android/app/build/outputs/apk/direct/release -name "*.apk" -print -quit)
+          APK_SRC=$(find android/app/build/outputs/apk/direct/release -name "*.apk" ! -name "*-unsigned.apk" -print -quit)
           AAB_SRC=$(find android/app/build/outputs/bundle/playRelease -name "*.aab" -print -quit)
 
           if [ -z "$APK_SRC" ] || [ -z "$AAB_SRC" ]; then
-            echo "::error::Direct APK veya Play AAB çıktısı bulunamadı."
+            echo "::error::İmzalı Direct APK veya Play AAB çıktısı bulunamadı."
             exit 1
           fi
 
-          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name "apksigner" | sort -V | tail -n 1)
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name "apksigner" \( -type f -o -type l \) | sort -V | tail -n 1)
           if [ -z "$APKSIGNER" ]; then
             echo "::error::Android build-tools apksigner bulunamadı."
             exit 1
           fi
 
-          "$APKSIGNER" verify --print-certs "$APK_SRC" > apk-certs.txt
-          jarsigner -verify -strict "$AAB_SRC" > /dev/null
-          keytool -printcert -jarfile "$AAB_SRC" > aab-certs.txt
+          AAPT2=$(find "$ANDROID_HOME/build-tools" -name "aapt2" \( -type f -o -type l \) | sort -V | tail -n 1 || true)
+          if [ -n "$AAPT2" ]; then
+            BADGING=$("$AAPT2" dump badging "$APK_SRC" | head -n 1)
+            if ! printf '%s' "$BADGING" | grep -q "name='com.mesai.app'"; then
+              echo "::error::APK paket kimliği com.mesai.app değil: $BADGING"
+              exit 1
+            fi
+            echo "APK Paket Doğrulaması: $BADGING"
+          fi
 
-          APK_SHA=$(grep -m1 "SHA-256 digest:" apk-certs.txt | awk '{print tolower($NF)}' | tr -d ':')
-          AAB_SHA=$(grep -m1 "SHA256:" aab-certs.txt | awk '{print tolower($NF)}' | tr -d ':')
+          "$APKSIGNER" verify --verbose --print-certs "$APK_SRC" > apk-certs.txt
 
-          if [ -z "$APK_SHA" ] || [ "$APK_SHA" != "$AAB_SHA" ]; then
-            echo "::error::APK ve AAB imzalama sertifikaları eşleşmiyor veya imzasız!"
+          if ! LC_ALL=C jarsigner -verify "$AAB_SRC" > aab-verify.txt 2>&1; then
+            echo "::error::Play AAB jarsigner doğrulaması başarısız!"
+            cat aab-verify.txt
             exit 1
           fi
-          echo "APK ve AAB aynı kalıcı sertifika ile imzalandı (SHA-256: $APK_SHA)."
-          rm -f apk-certs.txt aab-certs.txt
+
+          if ! grep -qi "jar verified" aab-verify.txt || grep -qi "jar is unsigned" aab-verify.txt; then
+            echo "::error::Play AAB imzalı değil veya doğrulanamadı!"
+            cat aab-verify.txt
+            exit 1
+          fi
+
+          LC_ALL=C keytool -printcert -jarfile "$AAB_SRC" > aab-certs.txt
+
+          node -e '
+            const fs = require("fs");
+            const apkText = fs.readFileSync("apk-certs.txt", "utf8");
+            const aabText = fs.readFileSync("aab-certs.txt", "utf8");
+
+            const extractAllSha256 = (text) => {
+              const matches = [...text.matchAll(/SHA-?256(?:\s+digest)?\s*:\s*([0-9a-fA-F:]{64,95})/gi)];
+              return matches
+                .map((m) => m[1].replace(/:/g, "").toLowerCase())
+                .filter((h) => /^[0-9a-f]{64}$/.test(h));
+            };
+
+            const apkDigests = extractAllSha256(apkText);
+            const aabDigests = extractAllSha256(aabText);
+
+            if (apkDigests.length === 0) {
+              throw new Error("APK SHA-256 sertifika parmak izi okunamadi.");
+            }
+            if (aabDigests.length === 0) {
+              throw new Error("AAB SHA-256 sertifika parmak izi okunamadi.");
+            }
+
+            const apkSha = apkDigests[0];
+            const aabSha = aabDigests[0];
+            if (apkSha !== aabSha) {
+              throw new Error(`APK (${apkSha}) ve AAB (${aabSha}) sertifikalari eslesmiyor!`);
+            }
+            console.log("APK ve AAB ayni kalici sertifika ile imzalandi (SHA-256: " + apkSha + ").");
+          '
+
+          rm -f apk-certs.txt aab-certs.txt aab-verify.txt
 
       - name: Prepare Direct APK & Generate Validated latest.json Manifest
         id: pkg
@@ -388,4 +436,4 @@ jobs:
         shell: bash
         run: |
           rm -f "${{ github.workspace }}/android/app/release.keystore"
-          rm -rf release-out releases-repo apk-certs.txt aab-certs.txt
+          rm -rf release-out releases-repo apk-certs.txt aab-certs.txt aab-verify.txt

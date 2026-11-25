@@ -9,6 +9,18 @@ import {
 
 const WEEKDAYS_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
+function formatCompactHours(totalMinutes: number): string {
+  const safe = Math.max(0, Math.round(totalMinutes));
+  if (safe === 0) return '';
+  if (safe < 60) return `${safe}dk`;
+  const hours = safe / 60;
+  if (Number.isInteger(hours)) return `${hours}sa`;
+  return `${new Intl.NumberFormat('tr-TR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(hours)}sa`;
+}
+
 interface MonthlyCalendarGridProps {
   viewYear: number;
   viewMonth: number; // 0-indexed
@@ -20,6 +32,7 @@ interface MonthlyCalendarGridProps {
   onNextMonth: () => void;
   onJumpToday: () => void;
   showEarningsInCells?: boolean;
+  showHoursInCells?: boolean;
   currency?: CurrencyCode;
 }
 
@@ -34,9 +47,11 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
   onNextMonth,
   onJumpToday,
   showEarningsInCells = false,
+  showHoursInCells = false,
   currency = 'TRY',
 }) => {
   const todayStr = getTodayDateString();
+  const hasCellDetailText = showEarningsInCells || showHoursInCells;
 
   const entriesByDate = useMemo(() => {
     const map = new Map<string, WorkEntry[]>();
@@ -122,7 +137,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
               <div
                 key={`empty-${idx}`}
                 className={
-                  showEarningsInCells
+                  hasCellDetailText
                     ? 'min-h-[58px] sm:min-h-[68px]'
                     : 'min-h-[46px] sm:min-h-[54px]'
                 }
@@ -148,6 +163,13 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
           );
 
           const dayEarnings = dayEntries.reduce((sum, e) => sum + e.estimatedEarnings, 0);
+          const dayWorkMinutes = dayEntries.reduce(
+            (sum, e) =>
+              e.workType === 'paid_leave' || e.workType === 'unpaid_leave'
+                ? sum
+                : sum + e.calculatedDurationMinutes,
+            0
+          );
 
           const isSelected = selectedDate === cell.dateStr;
           const isToday = todayStr === cell.dateStr;
@@ -171,7 +193,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
               }`}
               aria-pressed={isSelected}
               className={`${
-                showEarningsInCells
+                hasCellDetailText
                   ? 'min-h-[58px] sm:min-h-[68px] py-1.5 justify-between'
                   : 'min-h-[46px] sm:min-h-[54px] justify-center gap-1'
               } rounded-xl sm:rounded-2xl flex flex-col items-center relative transition-colors px-0.5 overflow-hidden ${
@@ -227,6 +249,28 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                     <span className="block font-sans text-[9px] sm:text-[10px] text-[#77827B] dark:text-[#929B95] truncate">
                       {hasLeave ? 'İzin' : 'Normal'}
                     </span>
+                  )}
+                </div>
+              ) : showHoursInCells ? (
+                <div className="w-full px-0.5 text-center leading-none">
+                  {entryCount === 0 ? (
+                    <span className="block h-3" />
+                  ) : dayWorkMinutes > 0 ? (
+                    <span
+                      className={`block font-mono text-[9px] sm:text-[11px] font-bold tracking-tighter tabular-nums truncate ${
+                        hasOvertime
+                          ? 'text-[#D97706] dark:text-[#F59E0B]'
+                          : 'text-[#159B61] dark:text-[#39D98A]'
+                      }`}
+                    >
+                      {formatCompactHours(dayWorkMinutes)}
+                    </span>
+                  ) : hasLeave ? (
+                    <span className="block font-sans text-[9px] sm:text-[10px] font-medium text-[#2563EB] dark:text-[#60A5FA] truncate">
+                      İzin
+                    </span>
+                  ) : (
+                    <span className="block h-3" />
                   )}
                 </div>
               ) : (

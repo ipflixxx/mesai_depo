@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BarChart3, Calculator, Home, Settings, Wallet } from 'lucide-react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useMesai } from '../context/MesaiContext';
 import { AndroidUpdateModal } from './AndroidUpdateModal';
 import { WorkEntryModal } from './WorkEntryModal';
@@ -13,11 +13,62 @@ const NAV_ITEMS = [
   { to: '/ayarlar', label: 'Ayarlar', icon: Settings, end: false },
 ];
 
+declare global {
+  interface Window {
+    __mesaiHandleAndroidBack?: () => 'handled' | 'blocked' | 'exit';
+  }
+}
+
 export const AppShell: React.FC = () => {
-  const { runtimeInfo, updateResult, isUpdateModalOpen, closeUpdateModal } = useMesai();
+  const {
+    runtimeInfo,
+    updateResult,
+    isUpdateModalOpen,
+    closeUpdateModal,
+    modalState,
+    closeEntryModal,
+  } = useMesai();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    window.__mesaiHandleAndroidBack = () => {
+      if (isUpdateModalOpen) {
+        if (updateResult?.mandatory) {
+          return 'blocked';
+        }
+        closeUpdateModal();
+        return 'handled';
+      }
+
+      if (modalState.isOpen) {
+        closeEntryModal();
+        return 'handled';
+      }
+
+      if (location.pathname !== '/') {
+        navigate('/');
+        return 'handled';
+      }
+
+      return 'exit';
+    };
+
+    return () => {
+      delete window.__mesaiHandleAndroidBack;
+    };
+  }, [
+    isUpdateModalOpen,
+    updateResult?.mandatory,
+    closeUpdateModal,
+    modalState.isOpen,
+    closeEntryModal,
+    location.pathname,
+    navigate,
+  ]);
 
   return (
-    <div className="min-h-screen bg-[#F6F8F6] dark:bg-[#101211] text-[#17221B] dark:text-[#F4F7F5] flex flex-col">
+    <div className="min-h-screen bg-[#F6F8F6] dark:bg-[#101211] text-[#17221B] dark:text-[#F4F7F5] flex flex-col pt-safe">
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 pt-5 pb-24 sm:pt-7">

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { isNativeAndroidPlatform, MesaiUpdater } from '../native/mesaiUpdater';
 import { ThemeMode } from '../types/mesai';
 
 export function useTheme(themeMode: ThemeMode) {
@@ -19,6 +20,12 @@ export function useTheme(themeMode: ThemeMode) {
       const metaTheme = document.querySelector('meta[name="theme-color"]');
       if (metaTheme) {
         metaTheme.setAttribute('content', resolvedDark ? '#101211' : '#F6F8F6');
+      }
+
+      if (isNativeAndroidPlatform()) {
+        void MesaiUpdater.setSystemBarAppearance({ isDark: resolvedDark }).catch(() => {
+          // Ignore on non-supported environments
+        });
       }
     };
 

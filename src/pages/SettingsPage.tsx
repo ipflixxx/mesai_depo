@@ -505,7 +505,7 @@ export const SettingsPage: React.FC = () => {
             <input
               ref={fileInputRef}
               type="file"
-              accept="application/json,.json"
+              accept=".json,application/json,text/plain"
               onChange={handleRestoreFile}
               className="hidden"
             />

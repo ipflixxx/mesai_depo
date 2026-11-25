@@ -1,3 +1,4 @@
+import { isNativeAndroidPlatform, MesaiUpdater } from '../native/mesaiUpdater';
 import { BackupPayload, UserSettings, WorkEntry } from '../types/mesai';
 import {
   WORK_TYPE_LABELS,
@@ -8,7 +9,34 @@ import {
   summarizeEntries,
 } from './calculations';
 
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
 function triggerDownload(blob: Blob, filename: string) {
+  if (isNativeAndroidPlatform()) {
+    void blobToBase64(blob)
+      .then((base64Data) =>
+        MesaiUpdater.exportFile({
+          filename,
+          mimeType: blob.type || 'application/octet-stream',
+          base64Data,
+        })
+      )
+      .catch(() => {
+        // Ignore user-cancelled share sheets
+      });
+    return;
+  }
+
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

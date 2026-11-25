@@ -4,8 +4,12 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
+import android.util.Base64;
+import android.view.Window;
 
 import androidx.core.content.FileProvider;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -253,6 +257,80 @@ public class MesaiUpdaterPlugin extends Plugin {
                     conn.disconnect();
                 }
             }
+        });
+    }
+
+    @PluginMethod
+    public void exportFile(PluginCall call) {
+        String rawFilename = call.getString("filename");
+        String mimeType = call.getString("mimeType", "application/octet-stream");
+        String base64Data = call.getString("base64Data");
+
+        if (rawFilename == null || rawFilename.trim().isEmpty() || base64Data == null || base64Data.isEmpty()) {
+            call.reject("Missing export filename or content.");
+            return;
+        }
+
+        String safeFilename = rawFilename.replaceAll("[^a-zA-Z0-9._-]", "_");
+
+        executor.execute(() -> {
+            try {
+                byte[] data = Base64.decode(base64Data, Base64.DEFAULT);
+                File exportsDir = new File(getContext().getCacheDir(), "exports");
+                if (!exportsDir.exists() && !exportsDir.mkdirs()) {
+                    call.reject("Failed to prepare export cache directory.");
+                    return;
+                }
+
+                File target = new File(exportsDir, safeFilename);
+                try (FileOutputStream fos = new FileOutputStream(target)) {
+                    fos.write(data);
+                    fos.flush();
+                }
+
+                Uri uri = FileProvider.getUriForFile(
+                    getContext(),
+                    BuildConfig.APPLICATION_ID + ".fileprovider",
+                    target
+                );
+
+                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                shareIntent.setType(mimeType);
+                shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
+                shareIntent.putExtra(Intent.EXTRA_SUBJECT, safeFilename);
+                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+                Intent chooser = Intent.createChooser(shareIntent, safeFilename);
+                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(chooser);
+
+                JSObject ret = new JSObject();
+                ret.put("shared", true);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject(e.getMessage() != null ? e.getMessage() : "File export failed.");
+            }
+        });
+    }
+
+    @PluginMethod
+    public void setSystemBarAppearance(PluginCall call) {
+        boolean isDark = Boolean.TRUE.equals(call.getBoolean("isDark", true));
+        if (getActivity() == null) {
+            call.resolve();
+            return;
+        }
+        getActivity().runOnUiThread(() -> {
+            try {
+                Window window = getActivity().getWindow();
+                WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
+                controller.setAppearanceLightStatusBars(!isDark);
+                controller.setAppearanceLightNavigationBars(!isDark);
+                window.getDecorView().setBackgroundColor(isDark ? 0xFF101211 : 0xFFF6F8F6);
+            } catch (Exception ignored) {
+                // Ignore on older WebViews/devices
+            }
+            call.resolve();
         });
     }
 
