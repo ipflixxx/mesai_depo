@@ -4,8 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: 'APK ve AAB artifactlarını içeren önceki workflow run ID (örn: 12345678901)'
+        description: 'APK ve AAB artifactlarını içeren önceki workflow run ID (örn: 45729499820)'
         required: true
+        default: '45729499820'
         type: string
       version_name:
         description: 'Uygulama sürümü (boş bırakılırsa artifact/latest.json içinden otomatik okunur)'
@@ -288,7 +289,8 @@ jobs:
 
       - name: Publish GitHub Release & All 5 Assets to Current Repository
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TOKEN_SECRET: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN_DEFAULT: ${{ secrets.GITHUB_TOKEN }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
           REQUIRED_REPOSITORY: ipflixxx/mesai_depo
           TARGET_COMMIT_SHA: ${{ steps.run_meta.outputs.source_head_sha || github.sha }}
@@ -307,7 +309,11 @@ jobs:
             const fs = require("fs");
             const path = require("path");
 
-            const token = (process.env.GH_TOKEN || "").trim();
+            const releaseToken = (process.env.RELEASE_TOKEN_SECRET || "").trim();
+            const defaultToken = (process.env.GH_TOKEN_DEFAULT || "").trim();
+            const token = releaseToken || defaultToken;
+            const tokenSource = releaseToken ? "RELEASE_TOKEN" : "GITHUB_TOKEN";
+
             const repoSlug = (process.env.GITHUB_REPOSITORY || "").trim();
             const expectedSlug = (process.env.EXPECTED_REPOSITORY || "").trim();
             const requiredSlug = (process.env.REQUIRED_REPOSITORY || "").trim();
@@ -321,7 +327,7 @@ jobs:
             const aabShaName = `${aabName}.sha256`;
             const manifestName = "latest.json";
 
-            if (!token) throw new Error("GITHUB_TOKEN eksik.");
+            if (!token) throw new Error("Yetkili GitHub token (RELEASE_TOKEN veya GITHUB_TOKEN) bulunamadı.");
             if (!repoSlug || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repoSlug)) {
               throw new Error(`Geçersiz GITHUB_REPOSITORY değeri: "${repoSlug}"`);
             }
@@ -331,6 +337,8 @@ jobs:
             if (requiredSlug && repoSlug.toLowerCase() !== requiredSlug.toLowerCase()) {
               throw new Error(`Beklenmeyen repository bağlamı: "${repoSlug}". Beklenen: "${requiredSlug}"`);
             }
+
+            console.log(`Release ve asset işlemleri için kullanılan token kaynağı: ${tokenSource}`);
 
             const [owner, repo] = repoSlug.split("/");
             const manifest = JSON.parse(fs.readFileSync(`release-out/${manifestName}`, "utf8"));
@@ -354,7 +362,11 @@ jobs:
             }
 
             function build403Message(actionLabel, reqId, acceptedPerms, bodyText) {
-              return `${actionLabel} yetki hatası (HTTP 403, request-id: ${reqId}, gereken_izin: ${acceptedPerms || "contents:write"}): ${sanitizeApiBody(bodyText)}. Workflow YAML içinde permissions (contents: write, actions: read) tanımlı olduğu hâlde HTTP 403 alınıyorsa GitHub Repo Settings -> Actions -> General -> Workflow permissions bölümünde "Read and write permissions" seçilmelidir.`;
+              const needsWorkflowsWrite = /workflows\s*=\s*write/i.test(acceptedPerms || "");
+              if (tokenSource === "GITHUB_TOKEN" && needsWorkflowsWrite) {
+                return `${actionLabel} yetki hatası (HTTP 403, token: ${tokenSource}, request-id: ${reqId}, gereken_izin: ${acceptedPerms}): ${sanitizeApiBody(bodyText)}. GitHub Actions GITHUB_TOKEN yapısı gereği workflows=write izni alamaz (Read and write permissions açık olsa bile verilmez). Çözüm: ipflixxx/mesai_depo -> Settings -> Secrets and variables -> Actions içine yalnızca bu depo için Contents (Read and write) ve Workflows (Read and write) yetkili bir Fine-Grained PAT (veya GitHub App token) değerini RELEASE_TOKEN adıyla ekleyin.`;
+              }
+              return `${actionLabel} yetki hatası (HTTP 403, token: ${tokenSource}, request-id: ${reqId}, gereken_izin: ${acceptedPerms || "contents:write"}): ${sanitizeApiBody(bodyText)}. Kullanılan token (${tokenSource}) üzerinde Contents (Read and write) ve Workflows (Read and write) izinlerinin aktif olduğunu doğrulayın.`;
             }
 
             async function apiRequest(url, options = {}, retryLabel = "GitHub API") {
