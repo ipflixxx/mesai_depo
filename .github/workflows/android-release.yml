@@ -49,7 +49,7 @@ jobs:
           HAS_STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD != '' }}
           HAS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS != '' }}
           HAS_KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD != '' }}
-          HAS_PUSH_TOKEN: ${{ secrets.RELEASES_PUSH_TOKEN != '' }}
+          HAS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN != '' }}
         run: |
           set +x
           MISSING=""
@@ -57,15 +57,15 @@ jobs:
           [ "$HAS_STORE_PASS" != "true" ] && MISSING="$MISSING ANDROID_KEYSTORE_PASSWORD"
           [ "$HAS_ALIAS" != "true" ] && MISSING="$MISSING ANDROID_KEY_ALIAS"
           [ "$HAS_KEY_PASS" != "true" ] && MISSING="$MISSING ANDROID_KEY_PASSWORD"
-          [ "$HAS_PUSH_TOKEN" != "true" ] && MISSING="$MISSING RELEASES_PUSH_TOKEN"
+          [ "$HAS_GITHUB_TOKEN" != "true" ] && MISSING="$MISSING GITHUB_TOKEN"
 
           if [ -n "$MISSING" ]; then
-            echo "::error::Eksik GitHub Secrets:$MISSING. Derleme başlatılmadan durduruldu; önceki yayınlara dokunulmadı."
+            echo "::error::Eksik imzalama veya yayın anahtarları:$MISSING. Derleme başlatılmadan durduruldu; önceki yayınlara dokunulmadı."
             exit 1
           fi
-          echo "Tüm zorunlu imzalama ve yayın secret'ları doğrulandı."
+          echo "Tüm zorunlu imzalama secret'ları ve GITHUB_TOKEN doğrulandı."
 
-      - name: Checkout private source repository (mesai_depo)
+      - name: Checkout source repository
         uses: actions/checkout@v4
 
       - name: Resolve and validate version metadata
@@ -331,7 +331,7 @@ jobs:
 
           rm -f apk-certs.txt aab-certs.txt aab-verify.txt
 
-      - name: Prepare Direct APK & Generate Validated latest.json Manifest
+      - name: Prepare Direct APK, Play AAB, Checksums & Validated latest.json Manifest
         id: pkg
         shell: bash
         env:
@@ -340,23 +340,44 @@ jobs:
           MANDATORY: ${{ steps.meta.outputs.mandatory }}
           MIN_CODE: ${{ steps.meta.outputs.min_code }}
           RELEASE_NOTES: ${{ steps.meta.outputs.release_notes }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
+          unset GH_REPO GH_HOST
+
+          if [ -z "${GITHUB_REPOSITORY:-}" ] || [ "$GITHUB_REPOSITORY" != "$EXPECTED_REPOSITORY" ]; then
+            echo "::error::GITHUB_REPOSITORY uyuşmazlığı: GITHUB_REPOSITORY='${GITHUB_REPOSITORY:-}' != '${EXPECTED_REPOSITORY}'"
+            exit 1
+          fi
+
           mkdir -p release-out
           APK_SRC=$(find android/app/build/outputs/apk/direct/release -name "*.apk" ! -name "*-unsigned.apk" -print -quit)
+          AAB_SRC=$(find android/app/build/outputs/bundle/playRelease -name "*.aab" -print -quit)
+
           if [ -z "$APK_SRC" ]; then
             echo "::error::İmzalı Direct Release APK bulunamadı."
             exit 1
           fi
+          if [ -z "$AAB_SRC" ]; then
+            echo "::error::İmzalı Google Play AAB bulunamadı."
+            exit 1
+          fi
+
           APK_NAME="mesai-v${VERSION_NAME}-direct-release.apk"
+          AAB_NAME="mesai-v${VERSION_NAME}-play-release.aab"
+
           cp "$APK_SRC" "release-out/${APK_NAME}"
+          cp "$AAB_SRC" "release-out/${AAB_NAME}"
 
-          export SHA256=$(sha256sum "release-out/${APK_NAME}" | awk '{print $1}')
-          export SIZE_BYTES=$(stat -c%s "release-out/${APK_NAME}")
+          export APK_SHA256=$(sha256sum "release-out/${APK_NAME}" | awk '{print $1}')
+          export AAB_SHA256=$(sha256sum "release-out/${AAB_NAME}" | awk '{print $1}')
+          export APK_SIZE_BYTES=$(stat -c%s "release-out/${APK_NAME}")
+          export AAB_SIZE_BYTES=$(stat -c%s "release-out/${AAB_NAME}")
           export PUBLISHED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          export APK_URL="https://github.com/ipflixxx/mesai_releases/releases/download/v${VERSION_NAME}/${APK_NAME}"
+          export APK_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION_NAME}/${APK_NAME}"
 
-          echo "${SHA256}  ${APK_NAME}" > "release-out/${APK_NAME}.sha256"
+          echo "${APK_SHA256}  ${APK_NAME}" > "release-out/${APK_NAME}.sha256"
+          echo "${AAB_SHA256}  ${AAB_NAME}" > "release-out/${AAB_NAME}.sha256"
 
           node -e '
             const fs = require("fs");
@@ -372,8 +393,8 @@ jobs:
               mandatory: process.env.MANDATORY === "true",
               publishedAt: process.env.PUBLISHED_AT,
               apkUrl: process.env.APK_URL,
-              sha256: process.env.SHA256,
-              sizeBytes: Number(process.env.SIZE_BYTES),
+              sha256: process.env.APK_SHA256,
+              sizeBytes: Number(process.env.APK_SIZE_BYTES),
               releaseNotes: notes.length ? notes : ["Performans iyileştirmeleri ve hata düzeltmeleri."]
             };
             if (!/^[a-f0-9]{64}$/.test(manifest.sha256) || manifest.sizeBytes <= 0) {
@@ -383,55 +404,79 @@ jobs:
           '
 
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "aab_name=$AAB_NAME" >> "$GITHUB_OUTPUT"
+          echo "apk_size_bytes=$APK_SIZE_BYTES" >> "$GITHUB_OUTPUT"
+          echo "aab_size_bytes=$AAB_SIZE_BYTES" >> "$GITHUB_OUTPUT"
+          ls -lh release-out
           cat release-out/latest.json
 
-      - name: Upload Play Store Signed AAB to Build Artifacts
+      - name: Upload Play Store Signed AAB & Checksum to Build Artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: mesai-v${{ steps.meta.outputs.version_name }}-play-aab
-          path: android/app/build/outputs/bundle/playRelease/*.aab
+          path: |
+            release-out/*.aab
+            release-out/*.aab.sha256
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload Direct Signed APK & Manifest to Build Artifacts
+      - name: Upload Direct Signed APK, Checksum & Manifest to Build Artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: mesai-v${{ steps.meta.outputs.version_name }}-direct-apk
           path: |
             release-out/*.apk
-            release-out/*.sha256
+            release-out/*.apk.sha256
             release-out/latest.json
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish Direct APK & latest.json Atomically to ipflixxx/mesai_releases
+      - name: Publish GitHub Release & All 5 Assets to Current Repository
         env:
-          GH_TOKEN: ${{ secrets.RELEASES_PUSH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+          TARGET_COMMIT_SHA: ${{ github.sha }}
           VERSION_NAME: ${{ steps.meta.outputs.version_name }}
           APK_NAME: ${{ steps.pkg.outputs.apk_name }}
+          AAB_NAME: ${{ steps.pkg.outputs.aab_name }}
+          APK_SIZE_BYTES: ${{ steps.pkg.outputs.apk_size_bytes }}
+          AAB_SIZE_BYTES: ${{ steps.pkg.outputs.aab_size_bytes }}
         run: |
           set +x
           set -euo pipefail
+          unset GH_REPO GH_HOST
 
           node -e '
             const fs = require("fs");
             const path = require("path");
 
             const token = (process.env.GH_TOKEN || "").trim();
-            const owner = "ipflixxx";
-            const repo = "mesai_releases";
+            const repoSlug = (process.env.GITHUB_REPOSITORY || "").trim();
+            const expectedSlug = (process.env.EXPECTED_REPOSITORY || "").trim();
+            const githubSha = (process.env.TARGET_COMMIT_SHA || process.env.GITHUB_SHA || "").trim();
             const versionName = process.env.VERSION_NAME;
             const tag = `v${versionName}`;
+
             const apkName = process.env.APK_NAME;
-            const shaName = `${apkName}.sha256`;
+            const aabName = process.env.AAB_NAME;
+            const apkShaName = `${apkName}.sha256`;
+            const aabShaName = `${aabName}.sha256`;
+            const manifestName = "latest.json";
 
             if (!token) {
-              throw new Error("RELEASES_PUSH_TOKEN eksik.");
+              throw new Error("GITHUB_TOKEN eksik.");
+            }
+            if (!repoSlug || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repoSlug)) {
+              throw new Error(`Geçersiz GITHUB_REPOSITORY değeri: "${repoSlug}"`);
+            }
+            if (expectedSlug && repoSlug !== expectedSlug) {
+              throw new Error(`Repository uyuşmazlığı: GITHUB_REPOSITORY=${repoSlug}, expected=${expectedSlug}`);
             }
 
-            const manifest = JSON.parse(fs.readFileSync("release-out/latest.json", "utf8"));
+            const [owner, repo] = repoSlug.split("/");
+            const manifest = JSON.parse(fs.readFileSync(`release-out/${manifestName}`, "utf8"));
             const releaseNotes = (manifest.releaseNotes || []).map((n) => `- ${n}`).join("\n");
             const apiBase = `https://api.github.com/repos/${owner}/${repo}`;
             const transientStatuses = new Set([500, 502, 503, 504]);
@@ -441,12 +486,11 @@ jobs:
               if (!rawText) return "";
               try {
                 const parsed = JSON.parse(rawText);
-                const summary = {
+                return JSON.stringify({
                   message: parsed.message,
                   errors: parsed.errors,
                   documentation_url: parsed.documentation_url,
-                };
-                return JSON.stringify(summary);
+                });
               } catch {
                 return rawText.slice(0, 500).replace(/[\r\n]+/g, " ");
               }
@@ -515,9 +559,8 @@ jobs:
                 );
               }
 
-              // Also check draft releases for the same tag
               const listRes = await apiRequest(
-                `${apiBase}/releases?per_page=30`,
+                `${apiBase}/releases?per_page=100`,
                 { method: "GET" },
                 "Release listesi kontrolü"
               );
@@ -528,6 +571,85 @@ jobs:
               return null;
             }
 
+            async function resolveAndValidateTarget() {
+              const repoRes = await apiRequest(apiBase, { method: "GET" }, "Hedef depo kontrolü");
+              if (repoRes.status !== 200 || !repoRes.json) {
+                throw new Error(
+                  `Hedef depo (${repoSlug}) doğrulanamadı (HTTP ${repoRes.status}, request-id: ${repoRes.reqId}): ${sanitizeApiBody(repoRes.text)}`
+                );
+              }
+              if ((repoRes.json.full_name || "").toLowerCase() !== repoSlug.toLowerCase()) {
+                throw new Error(
+                  `API depo uyuşmazlığı: beklenen=${repoSlug}, dönen=${repoRes.json.full_name}`
+                );
+              }
+
+              const defaultBranch = repoRes.json.default_branch;
+              if (!defaultBranch) {
+                throw new Error(`Hedef depo (${repoSlug}) default_branch bilgisine sahip değil (depo boş olabilir).`);
+              }
+
+              const branchRes = await apiRequest(
+                `${apiBase}/git/ref/heads/${encodeURIComponent(defaultBranch)}`,
+                { method: "GET" },
+                `Varsayılan dal kontrolü (${defaultBranch})`
+              );
+              if (branchRes.status !== 200 || !branchRes.json || !branchRes.json.object || !branchRes.json.object.sha) {
+                throw new Error(
+                  `Hedef depo (${repoSlug}) varsayılan dalı (${defaultBranch}) commit içermiyor (HTTP ${branchRes.status}).`
+                );
+              }
+              const defaultBranchSha = branchRes.json.object.sha;
+
+              let validatedCommitSha = "";
+              if (githubSha && /^[0-9a-f]{40}$/i.test(githubSha)) {
+                const commitRes = await apiRequest(
+                  `${apiBase}/commits/${githubSha}`,
+                  { method: "GET" },
+                  `GITHUB_SHA doğrulama (${githubSha.slice(0, 7)})`
+                );
+                if (commitRes.status === 200 && commitRes.json && commitRes.json.sha) {
+                  validatedCommitSha = commitRes.json.sha;
+                } else {
+                  console.warn(
+                    `GITHUB_SHA (${githubSha}) ${repoSlug} içinde bulunamadı (HTTP ${commitRes.status}); varsayılan dal HEAD kullanılacak.`
+                  );
+                }
+              }
+
+              let tagCommitSha = "";
+              const tagRefRes = await apiRequest(
+                `${apiBase}/git/ref/tags/${encodeURIComponent(tag)}`,
+                { method: "GET" },
+                `Tag ref kontrolü (${tag})`
+              );
+              if (tagRefRes.status === 200 && tagRefRes.json && tagRefRes.json.object) {
+                const obj = tagRefRes.json.object;
+                if (obj.type === "tag") {
+                  const tagObjRes = await apiRequest(
+                    `${apiBase}/git/tags/${obj.sha}`,
+                    { method: "GET" },
+                    `Annotated tag çözümü (${tag})`
+                  );
+                  if (tagObjRes.status === 200 && tagObjRes.json && tagObjRes.json.object) {
+                    tagCommitSha = tagObjRes.json.object.sha;
+                  }
+                } else if (obj.type === "commit") {
+                  tagCommitSha = obj.sha;
+                }
+              }
+
+              const targetCommitish = tagCommitSha || validatedCommitSha || defaultBranchSha;
+              if (!targetCommitish || !/^[0-9a-f]{40}$/i.test(targetCommitish)) {
+                throw new Error(`Geçerli bir target_commitish belirlenemedi (depo: ${repoSlug}).`);
+              }
+
+              console.log(
+                `Depo doğrulandı: ${repoSlug} | default_branch=${defaultBranch} (${defaultBranchSha.slice(0, 7)}) | target_commitish=${targetCommitish.slice(0, 7)} | tag_mevcut=${Boolean(tagCommitSha)}`
+              );
+              return { defaultBranch, targetCommitish };
+            }
+
             async function ensureRelease() {
               const existing = await findExistingRelease();
               if (existing) {
@@ -535,27 +657,11 @@ jobs:
                 return existing;
               }
 
-              const repoRes = await apiRequest(apiBase, { method: "GET" }, "Hedef depo kontrolü");
-              if (repoRes.status !== 200 || !repoRes.json) {
-                throw new Error(
-                  `Hedef depo okunamadı (HTTP ${repoRes.status}, request-id: ${repoRes.reqId}): ${sanitizeApiBody(repoRes.text)}`
-                );
-              }
-              const defaultBranch = repoRes.json.default_branch || "main";
-              const branchRes = await apiRequest(
-                `${apiBase}/git/ref/heads/${encodeURIComponent(defaultBranch)}`,
-                { method: "GET" },
-                `Dal kontrolü (${defaultBranch})`
-              );
-              if (branchRes.status === 404) {
-                throw new Error(
-                  `Hedef depo (${owner}/${repo}) henüz başlangıç commit içermiyor (${defaultBranch} dalı yok). Release oluşturmadan önce ${defaultBranch} dalında en az bir başlangıç commit bulunmalıdır.`
-                );
-              }
+              const { targetCommitish } = await resolveAndValidateTarget();
 
               const payload = {
                 tag_name: tag,
-                target_commitish: defaultBranch,
+                target_commitish: targetCommitish,
                 name: `MESAİ ${tag}`,
                 body: releaseNotes,
                 draft: false,
@@ -564,7 +670,6 @@ jobs:
 
               const maxCreateAttempts = 4;
               for (let attempt = 1; attempt <= maxCreateAttempts; attempt++) {
-                // Re-check before each attempt so we never recreate an already created release
                 const recheck = await findExistingRelease();
                 if (recheck) {
                   console.log(`Release zaten mevcut (id: ${recheck.id}, tag: ${tag}); mevcut release kullanılıyor.`);
@@ -596,7 +701,7 @@ jobs:
                 const reqId = res.headers.get("x-github-request-id") || "-";
                 if (res.status === 201) {
                   const created = JSON.parse(text);
-                  console.log(`Yeni GitHub Release oluşturuldu (id: ${created.id}, tag: ${tag}).`);
+                  console.log(`Yeni GitHub Release oluşturuldu (id: ${created.id}, tag: ${tag}, hedef: ${repoSlug}).`);
                   return created;
                 }
 
@@ -636,7 +741,6 @@ jobs:
 
               const maxUploadAttempts = 4;
               for (let attempt = 1; attempt <= maxUploadAttempts; attempt++) {
-                // Remove existing or partial asset with the same name before uploading
                 const latestReleaseRes = await apiRequest(
                   `${apiBase}/releases/${release.id}`,
                   { method: "GET" },
@@ -686,8 +790,17 @@ jobs:
 
             (async () => {
               const release = await ensureRelease();
-              await uploadAsset(release, `release-out/${apkName}`, "application/vnd.android.package-archive");
-              await uploadAsset(release, `release-out/${shaName}`, "text/plain; charset=utf-8");
+              const expectedAssets = [
+                { path: `release-out/${apkName}`, type: "application/vnd.android.package-archive", size: Number(process.env.APK_SIZE_BYTES) },
+                { path: `release-out/${aabName}`, type: "application/octet-stream", size: Number(process.env.AAB_SIZE_BYTES) },
+                { path: `release-out/${apkShaName}`, type: "text/plain; charset=utf-8", size: fs.statSync(`release-out/${apkShaName}`).size },
+                { path: `release-out/${aabShaName}`, type: "text/plain; charset=utf-8", size: fs.statSync(`release-out/${aabShaName}`).size },
+                { path: `release-out/${manifestName}`, type: "application/json", size: fs.statSync(`release-out/${manifestName}`).size },
+              ];
+
+              for (const item of expectedAssets) {
+                await uploadAsset(release, item.path, item.type);
+              }
 
               const verifyRes = await apiRequest(
                 `${apiBase}/releases/${release.id}`,
@@ -697,47 +810,42 @@ jobs:
               if (verifyRes.status !== 200 || !verifyRes.json) {
                 throw new Error(`Release doğrulaması başarısız (HTTP ${verifyRes.status}).`);
               }
-              const uploadedApk = (verifyRes.json.assets || []).find(
-                (a) => a.name === apkName && a.state === "uploaded" && Number(a.size) === Number(manifest.sizeBytes)
-              );
-              if (!uploadedApk) {
-                throw new Error("Yüklenen APK asset boyut veya durum doğrulamasından geçemedi!");
+
+              const uploadedAssets = verifyRes.json.assets || [];
+              const summaryLines = [
+                `## MESAİ ${tag} Release Özeti`,
+                ``,
+                `- **Depo:** \`${repoSlug}\``,
+                `- **Release Sayfası:** ${verifyRes.json.html_url}`,
+                ``,
+                `| Dosya | Boyut (byte) | İndirme Bağlantısı |`,
+                `| --- | ---: | --- |`,
+              ];
+
+              for (const item of expectedAssets) {
+                const name = path.basename(item.path);
+                const match = uploadedAssets.find(
+                  (a) => a.name === name && a.state === "uploaded" && Number(a.size) === Number(item.size)
+                );
+                if (!match) {
+                  throw new Error(`Yüklenen asset boyut veya durum doğrulamasından geçemedi: ${name}`);
+                }
+                summaryLines.push(`| \`${name}\` | ${match.size} | ${match.browser_download_url} |`);
               }
-              console.log(`Release ve APK asset doğrulandı: ${apkName}`);
+
+              if (process.env.GITHUB_STEP_SUMMARY) {
+                fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryLines.join("\n") + "\n");
+              }
+              console.log(`Release ve tüm 5 asset doğrulandı: ${verifyRes.json.html_url}`);
             })().catch((err) => {
               console.error(`::error::Release yayınlama başarısız (APK ve AAB Build Artifacts olarak yüklendi): ${err.message}`);
               process.exit(1);
             });
           '
 
-          # Update latest.json on main branch only after APK release and asset upload are verified
-          ASKPASS_SCRIPT=$(mktemp)
-          chmod 700 "$ASKPASS_SCRIPT"
-          cat << 'EOF' > "$ASKPASS_SCRIPT"
-          #!/bin/sh
-          case "$1" in
-            *Username*) printf '%s\n' "x-access-token" ;;
-            *Password*) printf '%s\n' "$GH_TOKEN" ;;
-          esac
-          EOF
-          trap 'rm -f "$ASKPASS_SCRIPT"' EXIT
-
-          export GIT_ASKPASS="$ASKPASS_SCRIPT"
-          export GIT_TERMINAL_PROMPT=0
-          git clone --branch main --single-branch "https://github.com/ipflixxx/mesai_releases.git" releases-repo
-          cp release-out/latest.json releases-repo/latest.json
-          cd releases-repo
-          git config user.name "mesai-release-bot"
-          git config user.email "release-bot@users.noreply.github.com"
-          git add latest.json
-          if ! git diff --cached --quiet; then
-            git commit -m "chore(release): publish v${VERSION_NAME}"
-            git push origin main
-          fi
-
       - name: Securely Cleanup Keystore & Temp Files
         if: always()
         shell: bash
         run: |
           rm -f "${{ github.workspace }}/android/app/release.keystore"
-          rm -rf release-out releases-repo apk-certs.txt aab-certs.txt aab-verify.txt
+          rm -rf release-out apk-certs.txt aab-certs.txt aab-verify.txt
