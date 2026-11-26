@@ -36,12 +36,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Validate Target Repository & Source Workflow Run Artifacts
+      - name: Validate Repository Context (ipflixxx/mesai_depo) & Source Run Artifacts
         id: run_meta
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
+          REQUIRED_REPOSITORY: ipflixxx/mesai_depo
           SOURCE_RUN_ID: ${{ inputs.run_id }}
         run: |
           set +x
@@ -54,6 +55,7 @@ jobs:
             const token = (process.env.GH_TOKEN || "").trim();
             const repoSlug = (process.env.GITHUB_REPOSITORY || "").trim();
             const expectedSlug = (process.env.EXPECTED_REPOSITORY || "").trim();
+            const requiredSlug = (process.env.REQUIRED_REPOSITORY || "").trim();
             const runId = (process.env.SOURCE_RUN_ID || "").trim();
 
             if (!token) throw new Error("GITHUB_TOKEN eksik.");
@@ -62,6 +64,9 @@ jobs:
             }
             if (expectedSlug && repoSlug !== expectedSlug) {
               throw new Error(`Repository uyuşmazlığı: ${repoSlug} != ${expectedSlug}`);
+            }
+            if (requiredSlug && repoSlug.toLowerCase() !== requiredSlug.toLowerCase()) {
+              throw new Error(`Beklenmeyen repository bağlamı: "${repoSlug}". Bu workflow yalnızca "${requiredSlug}" deposunda çalışmalıdır.`);
             }
             if (!/^[0-9]+$/.test(runId)) {
               throw new Error(`Geçersiz run_id formatı: "${runId}". Yalnızca rakam girilmelidir.`);
@@ -76,9 +81,18 @@ jobs:
               "User-Agent": "mesai-publish-existing-release",
             };
 
+            const format403Hint = (res, endpoint) => {
+              const reqPerms = res.headers.get("x-accepted-github-permissions") || "bilinmiyor";
+              const reqId = res.headers.get("x-github-request-id") || "-";
+              return `HTTP 403 (${endpoint}, request-id: ${reqId}, gereken_izin: ${reqPerms}). Workflow YAML içinde permissions (contents: write, actions: read) tanımlı; hata sürüyorsa GitHub Repo Settings -> Actions -> General -> Workflow permissions ayarında "Read and write permissions" etkinleştirilmelidir.`;
+            };
+
             (async () => {
               const runRes = await fetch(`${apiBase}/actions/runs/${runId}`, { headers });
               const runText = await runRes.text();
+              if (runRes.status === 403) {
+                throw new Error(`${format403Hint(runRes, "GET /actions/runs/{run_id}")} Yanıt: ${runText.slice(0, 300)}`);
+              }
               if (runRes.status !== 200) {
                 throw new Error(`Workflow run (${runId}) ${repoSlug} içinde okunamadı (HTTP ${runRes.status}): ${runText.slice(0, 300)}`);
               }
@@ -89,6 +103,9 @@ jobs:
 
               const artRes = await fetch(`${apiBase}/actions/runs/${runId}/artifacts?per_page=100`, { headers });
               const artText = await artRes.text();
+              if (artRes.status === 403) {
+                throw new Error(`${format403Hint(artRes, "GET /actions/runs/{run_id}/artifacts")} Yanıt: ${artText.slice(0, 300)}`);
+              }
               if (artRes.status !== 200) {
                 throw new Error(`Run (${runId}) artifact listesi alınamadı (HTTP ${artRes.status}): ${artText.slice(0, 300)}`);
               }
@@ -99,7 +116,7 @@ jobs:
               }
 
               console.log(
-                `Run doğrulandı: id=${runId}, durum=${run.status}/${run.conclusion}, head_sha=${(run.head_sha || "").slice(0, 7)}, artifact_sayisi=${artifacts.length}`
+                `Depo ve Run doğrulandı: ${repoSlug} | run_id=${runId} | durum=${run.status}/${run.conclusion} | head_sha=${(run.head_sha || "").slice(0, 7)} | artifact_sayisi=${artifacts.length}`
               );
               for (const a of artifacts) {
                 console.log(` - Artifact: ${a.name} (${a.size_in_bytes} byte)`);
@@ -115,6 +132,7 @@ jobs:
       - name: Download Existing Build Artifacts (No Rebuild)
         uses: actions/download-artifact@v4
         with:
+          repository: ${{ github.repository }}
           run-id: ${{ inputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: downloaded-artifacts
@@ -124,6 +142,7 @@ jobs:
         shell: bash
         env:
           EXPECTED_REPOSITORY: ${{ github.repository }}
+          REQUIRED_REPOSITORY: ipflixxx/mesai_depo
           INPUT_VERSION_NAME: ${{ inputs.version_name }}
           INPUT_VERSION_CODE: ${{ inputs.version_code }}
           INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
@@ -133,6 +152,10 @@ jobs:
 
           if [ -z "${GITHUB_REPOSITORY:-}" ] || [ "$GITHUB_REPOSITORY" != "$EXPECTED_REPOSITORY" ]; then
             echo "::error::GITHUB_REPOSITORY uyuşmazlığı: '${GITHUB_REPOSITORY:-}' != '${EXPECTED_REPOSITORY}'"
+            exit 1
+          fi
+          if [ "${GITHUB_REPOSITORY,,}" != "${REQUIRED_REPOSITORY,,}" ]; then
+            echo "::error::Beklenmeyen repository bağlamı: '${GITHUB_REPOSITORY}' != '${REQUIRED_REPOSITORY}'"
             exit 1
           fi
 
@@ -267,6 +290,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
+          REQUIRED_REPOSITORY: ipflixxx/mesai_depo
           TARGET_COMMIT_SHA: ${{ steps.run_meta.outputs.source_head_sha || github.sha }}
           SOURCE_RUN_ID: ${{ inputs.run_id }}
           VERSION_NAME: ${{ steps.pkg.outputs.version_name }}
@@ -286,6 +310,7 @@ jobs:
             const token = (process.env.GH_TOKEN || "").trim();
             const repoSlug = (process.env.GITHUB_REPOSITORY || "").trim();
             const expectedSlug = (process.env.EXPECTED_REPOSITORY || "").trim();
+            const requiredSlug = (process.env.REQUIRED_REPOSITORY || "").trim();
             const preferredSha = (process.env.TARGET_COMMIT_SHA || process.env.GITHUB_SHA || "").trim();
             const versionName = process.env.VERSION_NAME;
             const tag = `v${versionName}`;
@@ -302,6 +327,9 @@ jobs:
             }
             if (expectedSlug && repoSlug !== expectedSlug) {
               throw new Error(`Repository uyuşmazlığı: ${repoSlug} != ${expectedSlug}`);
+            }
+            if (requiredSlug && repoSlug.toLowerCase() !== requiredSlug.toLowerCase()) {
+              throw new Error(`Beklenmeyen repository bağlamı: "${repoSlug}". Beklenen: "${requiredSlug}"`);
             }
 
             const [owner, repo] = repoSlug.split("/");
@@ -323,6 +351,10 @@ jobs:
               } catch {
                 return rawText.slice(0, 500).replace(/[\r\n]+/g, " ");
               }
+            }
+
+            function build403Message(actionLabel, reqId, acceptedPerms, bodyText) {
+              return `${actionLabel} yetki hatası (HTTP 403, request-id: ${reqId}, gereken_izin: ${acceptedPerms || "contents:write"}): ${sanitizeApiBody(bodyText)}. Workflow YAML içinde permissions (contents: write, actions: read) tanımlı olduğu hâlde HTTP 403 alınıyorsa GitHub Repo Settings -> Actions -> General -> Workflow permissions bölümünde "Read and write permissions" seçilmelidir.`;
             }
 
             async function apiRequest(url, options = {}, retryLabel = "GitHub API") {
@@ -350,6 +382,11 @@ jobs:
                 }
 
                 const reqId = res.headers.get("x-github-request-id") || "-";
+                const acceptedPerms = res.headers.get("x-accepted-github-permissions") || "";
+                if (res.status === 403) {
+                  throw new Error(build403Message(retryLabel, reqId, acceptedPerms, text));
+                }
+
                 if (transientStatuses.has(res.status)) {
                   console.error(
                     `[${retryLabel}] Geçici HTTP ${res.status} (request-id: ${reqId}, deneme ${attempt}/${maxAttempts}): ${sanitizeApiBody(text)}`
@@ -367,7 +404,7 @@ jobs:
                 } catch {
                   json = null;
                 }
-                return { status: res.status, reqId, text, json };
+                return { status: res.status, reqId, acceptedPerms, text, json };
               }
             }
 
@@ -515,10 +552,15 @@ jobs:
                 }
 
                 const reqId = res.headers.get("x-github-request-id") || "-";
+                const acceptedPerms = res.headers.get("x-accepted-github-permissions") || "contents:write";
                 if (res.status === 201) {
                   const created = JSON.parse(text);
                   console.log(`Yeni GitHub Release oluşturuldu (id: ${created.id}, tag: ${tag}, hedef: ${repoSlug}).`);
                   return created;
+                }
+
+                if (res.status === 403) {
+                  throw new Error(build403Message("Release oluşturma", reqId, acceptedPerms, text));
                 }
 
                 if (res.status === 422) {
