@@ -21,6 +21,28 @@ function formatCompactHours(totalMinutes: number): string {
   }).format(hours)}sa`;
 }
 
+function resolveEntryRatePercent(
+  entry: WorkEntry,
+  overtimeMultiplier: number,
+  weekendMultiplier: number
+): 50 | 100 | null {
+  if (entry.workType === 'paid_leave' || entry.workType === 'unpaid_leave') return null;
+  const hasOvertime =
+    entry.overtimeDurationMinutes > 0 ||
+    entry.workType === 'overtime' ||
+    entry.workType === 'weekend' ||
+    entry.workType === 'holiday';
+  if (!hasOvertime) return null;
+
+  if (entry.overtimeRatePercent === 50 || entry.overtimeRatePercent === 100) {
+    return entry.overtimeRatePercent;
+  }
+  if (entry.workType === 'weekend' || entry.workType === 'holiday') {
+    return weekendMultiplier >= 2.0 ? 100 : 50;
+  }
+  return overtimeMultiplier >= 2.0 ? 100 : 50;
+}
+
 interface MonthlyCalendarGridProps {
   viewYear: number;
   viewMonth: number; // 0-indexed
@@ -34,6 +56,8 @@ interface MonthlyCalendarGridProps {
   showEarningsInCells?: boolean;
   showHoursInCells?: boolean;
   currency?: CurrencyCode;
+  overtimeMultiplier?: number;
+  weekendMultiplier?: number;
 }
 
 export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
@@ -49,6 +73,8 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
   showEarningsInCells = false,
   showHoursInCells = false,
   currency = 'TRY',
+  overtimeMultiplier = 1.5,
+  weekendMultiplier = 2.0,
 }) => {
   const todayStr = getTodayDateString();
   const hasCellDetailText = showEarningsInCells || showHoursInCells;
@@ -82,7 +108,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
   return (
     <section
       aria-label="Aylık mesai takvimi"
-      className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-3.5 sm:p-6"
+      className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-3.5 sm:p-6"
     >
       {/* Month & Navigation */}
       <div className="flex items-center justify-between gap-2 mb-4 sm:mb-5">
@@ -94,7 +120,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
           <button
             type="button"
             onClick={onJumpToday}
-            className="min-h-[38px] px-3 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] text-xs font-medium text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity whitespace-nowrap"
+            className="min-h-[38px] px-3 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-xs font-medium text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity whitespace-nowrap"
           >
             Bugüne Dön
           </button>
@@ -102,7 +128,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
             type="button"
             onClick={onPrevMonth}
             aria-label="Önceki ay"
-            className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity"
+            className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -110,7 +136,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
             type="button"
             onClick={onNextMonth}
             aria-label="Sonraki ay"
-            className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity"
+            className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -146,30 +172,50 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
           }
 
           const dayEntries = entriesByDate.get(cell.dateStr) ?? [];
-          const hasNormal = dayEntries.some(
-            (e) =>
-              e.workType === 'normal' &&
-              e.calculatedDurationMinutes > e.overtimeDurationMinutes
-          );
-          const hasOvertime = dayEntries.some(
-            (e) =>
-              e.overtimeDurationMinutes > 0 ||
-              e.workType === 'overtime' ||
-              e.workType === 'weekend' ||
-              e.workType === 'holiday'
-          );
-          const hasLeave = dayEntries.some(
-            (e) => e.workType === 'paid_leave' || e.workType === 'unpaid_leave'
-          );
+          let normalMinutes = 0;
+          let rate50Minutes = 0;
+          let rate100Minutes = 0;
+          let hasLeave = false;
+
+          for (const e of dayEntries) {
+            if (e.workType === 'paid_leave' || e.workType === 'unpaid_leave') {
+              hasLeave = true;
+              continue;
+            }
+
+            const ratePercent = resolveEntryRatePercent(
+              e,
+              overtimeMultiplier,
+              weekendMultiplier
+            );
+
+            if (e.workType === 'normal') {
+              const regularMin = Math.max(
+                0,
+                e.calculatedDurationMinutes - e.overtimeDurationMinutes
+              );
+              normalMinutes += regularMin;
+              if (e.overtimeDurationMinutes > 0) {
+                if (ratePercent === 100) {
+                  rate100Minutes += e.overtimeDurationMinutes;
+                } else {
+                  rate50Minutes += e.overtimeDurationMinutes;
+                }
+              }
+            } else if (ratePercent === 100) {
+              rate100Minutes += e.calculatedDurationMinutes;
+            } else if (ratePercent === 50) {
+              rate50Minutes += e.calculatedDurationMinutes;
+            } else {
+              normalMinutes += e.calculatedDurationMinutes;
+            }
+          }
+
+          const hasNormal = normalMinutes > 0;
+          const hasRate50 = rate50Minutes > 0;
+          const hasRate100 = rate100Minutes > 0;
 
           const dayEarnings = dayEntries.reduce((sum, e) => sum + e.estimatedEarnings, 0);
-          const dayWorkMinutes = dayEntries.reduce(
-            (sum, e) =>
-              e.workType === 'paid_leave' || e.workType === 'unpaid_leave'
-                ? sum
-                : sum + e.calculatedDurationMinutes,
-            0
-          );
 
           const isSelected = selectedDate === cell.dateStr;
           const isToday = todayStr === cell.dateStr;
@@ -194,16 +240,16 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
               aria-pressed={isSelected}
               className={`${
                 hasCellDetailText
-                  ? 'min-h-[58px] sm:min-h-[68px] py-1.5 justify-between'
+                  ? 'min-h-[62px] sm:min-h-[72px] py-1.5 justify-between'
                   : 'min-h-[46px] sm:min-h-[54px] justify-center gap-1'
               } rounded-xl sm:rounded-2xl flex flex-col items-center relative transition-colors px-0.5 overflow-hidden ${
                 isSelected
                   ? 'bg-[#159B61]/12 dark:bg-[#39D98A]/14 ring-2 ring-[#159B61] dark:ring-[#39D98A] text-[#17221B] dark:text-[#F4F7F5]'
                   : isToday
-                  ? 'bg-[#EEF2EF] dark:bg-[#222925] ring-1 ring-[#159B61]/55 dark:ring-[#39D98A]/55 text-[#17221B] dark:text-[#F4F7F5]'
+                  ? 'bg-[#EEF2EF] dark:bg-[#222925] ring-1 ring-[#159B61]/65 dark:ring-[#39D98A]/55 text-[#17221B] dark:text-[#F4F7F5]'
                   : entryCount > 0
-                  ? 'bg-[#EEF2EF]/55 dark:bg-[#222925]/55 hover:bg-[#EEF2EF] dark:hover:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5]'
-                  : 'hover:bg-[#EEF2EF]/60 dark:hover:bg-[#222925]/60 text-[#17221B] dark:text-[#F4F7F5]'
+                  ? 'bg-[#EEF2EF]/80 dark:bg-[#222925]/60 border border-[#C9D3CD] dark:border-white/[0.08] hover:bg-[#EEF2EF] dark:hover:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5]'
+                  : 'border border-[#DFE6E1] dark:border-white/[0.05] hover:bg-[#EEF2EF]/70 dark:hover:bg-[#222925]/60 text-[#17221B] dark:text-[#F4F7F5]'
               }`}
             >
               {/* Selected quick-add '+' indicator */}
@@ -252,21 +298,34 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                   )}
                 </div>
               ) : showHoursInCells ? (
-                <div className="w-full px-0.5 text-center leading-none">
+                <div className="w-full px-0.5 text-center leading-tight flex flex-col items-center justify-end gap-0.5 min-h-[20px]">
                   {entryCount === 0 ? (
                     <span className="block h-3" />
-                  ) : dayWorkMinutes > 0 ? (
-                    <span
-                      className={`block font-mono text-[9px] sm:text-[11px] font-bold tracking-tighter tabular-nums truncate ${
-                        hasOvertime
-                          ? 'text-[#D97706] dark:text-[#F59E0B]'
-                          : 'text-[#159B61] dark:text-[#39D98A]'
-                      }`}
-                    >
-                      {formatCompactHours(dayWorkMinutes)}
+                  ) : hasRate50 || hasRate100 ? (
+                    <>
+                      {hasRate50 && (
+                        <span
+                          title="%50 mesai"
+                          className="block w-full font-mono text-[9px] sm:text-[10px] font-bold tracking-tighter text-[#D97706] dark:text-[#F59E0B] tabular-nums leading-none truncate"
+                        >
+                          {formatCompactHours(rate50Minutes)}
+                        </span>
+                      )}
+                      {hasRate100 && (
+                        <span
+                          title="%100 mesai"
+                          className="block w-full font-mono text-[9px] sm:text-[10px] font-bold tracking-tighter text-[#7C3AED] dark:text-[#A78BFA] tabular-nums leading-none truncate"
+                        >
+                          {formatCompactHours(rate100Minutes)}
+                        </span>
+                      )}
+                    </>
+                  ) : hasNormal ? (
+                    <span className="block w-full font-mono text-[9px] sm:text-[11px] font-bold tracking-tighter text-[#159B61] dark:text-[#39D98A] tabular-nums leading-none truncate">
+                      {formatCompactHours(normalMinutes)}
                     </span>
                   ) : hasLeave ? (
-                    <span className="block font-sans text-[9px] sm:text-[10px] font-medium text-[#2563EB] dark:text-[#60A5FA] truncate">
+                    <span className="block font-sans text-[9px] sm:text-[10px] font-medium text-[#2563EB] dark:text-[#60A5FA] leading-none truncate">
                       İzin
                     </span>
                   ) : (
@@ -278,8 +337,11 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                   {hasNormal && (
                     <span className="h-1.5 w-1.5 sm:w-2.5 rounded-full bg-[#159B61] dark:bg-[#39D98A]" />
                   )}
-                  {hasOvertime && (
+                  {hasRate50 && (
                     <span className="h-1.5 w-1.5 sm:w-2.5 rounded-full bg-[#D97706] dark:bg-[#F59E0B]" />
+                  )}
+                  {hasRate100 && (
+                    <span className="h-1.5 w-1.5 sm:w-2.5 rounded-full bg-[#7C3AED] dark:bg-[#A78BFA]" />
                   )}
                   {hasLeave && (
                     <span className="h-1.5 w-1.5 sm:w-2.5 rounded-full bg-[#2563EB] dark:bg-[#60A5FA]" />
@@ -292,15 +354,19 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
       </div>
 
       {/* Color Legend */}
-      <div className="mt-4 pt-3.5 border-t border-black/[0.06] dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#77827B] dark:text-[#929B95]">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+      <div className="mt-4 pt-3.5 border-t border-[#D7E0DA] dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#77827B] dark:text-[#929B95]">
+        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-[#159B61] dark:bg-[#39D98A]" />
-            Normal mesai
+            Normal
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-[#D97706] dark:bg-[#F59E0B]" />
-            Fazla mesai
+            %50 mesai
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-[#7C3AED] dark:bg-[#A78BFA]" />
+            %100 mesai
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-[#2563EB] dark:bg-[#60A5FA]" />

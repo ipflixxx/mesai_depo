@@ -120,7 +120,7 @@ export const OnboardingFlow: React.FC = () => {
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.25 }}
-          className="w-full max-w-md rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-7 text-center"
+          className="w-full max-w-md rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-7 text-center"
         >
           <div className="w-14 h-14 mx-auto rounded-2xl bg-[#159B61]/12 dark:bg-[#39D98A]/15 flex items-center justify-center mb-5">
             <Check className="w-7 h-7 text-[#159B61] dark:text-[#39D98A]" />
@@ -132,7 +132,7 @@ export const OnboardingFlow: React.FC = () => {
             Çalışma düzenin kaydedildi. Artık mesailerini girerek kazancını anında takip edebilirsin.
           </p>
 
-          <div className="mt-6 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] p-4 text-left space-y-2.5">
+          <div className="mt-6 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-4 text-left space-y-2.5">
             <div className="flex items-center justify-between text-xs text-[#77827B] dark:text-[#929B95]">
               <span>Aylık maaş</span>
               <span className="font-mono font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
@@ -203,7 +203,7 @@ export const OnboardingFlow: React.FC = () => {
         </div>
 
         {/* Step Card */}
-        <div className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-7">
+        <div className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-7">
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
@@ -234,7 +234,7 @@ export const OnboardingFlow: React.FC = () => {
                         value={form.userName}
                         onChange={(e) => setForm({ ...form, userName: e.target.value })}
                         placeholder="Örn. Emre"
-                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 text-sm text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 text-sm text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                       />
                     </div>
 
@@ -249,7 +249,7 @@ export const OnboardingFlow: React.FC = () => {
                         value={salaryText}
                         onChange={(e) => setSalaryText(e.target.value)}
                         placeholder="Örn. 35000"
-                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-base font-semibold text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-semibold text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                       />
                     </div>
 
@@ -258,7 +258,7 @@ export const OnboardingFlow: React.FC = () => {
                         <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                           Maaş türü
                         </label>
-                        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925]">
+                        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07]">
                           {(['net', 'gross'] as SalaryType[]).map((type) => (
                             <button
                               key={type}
@@ -266,7 +266,7 @@ export const OnboardingFlow: React.FC = () => {
                               onClick={() => setForm({ ...form, salaryType: type })}
                               className={`min-h-[36px] rounded-lg text-xs font-medium transition-colors ${
                                 form.salaryType === type
-                                  ? 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5]'
+                                  ? 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                                   : 'text-[#77827B] dark:text-[#929B95]'
                               }`}
                             >
@@ -280,7 +280,7 @@ export const OnboardingFlow: React.FC = () => {
                         <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                           Para birimi
                         </label>
-                        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925]">
+                        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07]">
                           {(['TRY', 'USD', 'EUR'] as CurrencyCode[]).map((cur) => (
                             <button
                               key={cur}
@@ -288,7 +288,7 @@ export const OnboardingFlow: React.FC = () => {
                               onClick={() => setForm({ ...form, currency: cur })}
                               className={`min-h-[36px] rounded-lg text-xs font-mono font-medium transition-colors ${
                                 form.currency === cur
-                                  ? 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5]'
+                                  ? 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                                   : 'text-[#77827B] dark:text-[#929B95]'
                               }`}
                             >
@@ -314,7 +314,7 @@ export const OnboardingFlow: React.FC = () => {
                             paymentDay: Math.max(1, Math.min(31, Number(e.target.value) || 1)),
                           })
                         }
-                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                       />
                     </div>
                   </div>
@@ -349,7 +349,7 @@ export const OnboardingFlow: React.FC = () => {
                               Number(e.target.value) || 5
                             )
                           }
-                          className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                          className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                         />
                       </div>
 
@@ -369,7 +369,7 @@ export const OnboardingFlow: React.FC = () => {
                               form.weeklyWorkDays
                             )
                           }
-                          className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                          className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                         />
                       </div>
                     </div>
@@ -390,7 +390,7 @@ export const OnboardingFlow: React.FC = () => {
                             weeklyWorkHours: Math.max(1, Number(e.target.value) || 40),
                           })
                         }
-                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                       />
                     </div>
 
@@ -405,7 +405,7 @@ export const OnboardingFlow: React.FC = () => {
                           onChange={(e) =>
                             setForm({ ...form, workStartTime: e.target.value })
                           }
-                          className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                          className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                         />
                       </div>
                       <div>
@@ -418,7 +418,7 @@ export const OnboardingFlow: React.FC = () => {
                           onChange={(e) =>
                             setForm({ ...form, workEndTime: e.target.value })
                           }
-                          className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                          className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                         />
                       </div>
                     </div>
@@ -438,7 +438,7 @@ export const OnboardingFlow: React.FC = () => {
                             breakMinutes: Math.max(0, Number(e.target.value) || 0),
                           })
                         }
-                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                       />
                     </div>
                   </div>
@@ -470,7 +470,7 @@ export const OnboardingFlow: React.FC = () => {
                             className={`flex-1 min-h-[44px] rounded-xl font-mono text-sm font-medium transition-colors ${
                               form.overtimeMultiplier === val
                                 ? 'bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211]'
-                                : 'bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5]'
+                                : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                             }`}
                           >
                             {val}x
@@ -487,7 +487,7 @@ export const OnboardingFlow: React.FC = () => {
                               overtimeMultiplier: Math.max(1, Number(e.target.value) || 1.5),
                             })
                           }
-                          className="w-20 min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3 text-center font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                          className="w-20 min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 text-center font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                         />
                       </div>
                     </div>
@@ -505,7 +505,7 @@ export const OnboardingFlow: React.FC = () => {
                             className={`flex-1 min-h-[44px] rounded-xl font-mono text-sm font-medium transition-colors ${
                               form.weekendMultiplier === val
                                 ? 'bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211]'
-                                : 'bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5]'
+                                : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                             }`}
                           >
                             {val}x
@@ -522,7 +522,7 @@ export const OnboardingFlow: React.FC = () => {
                               weekendMultiplier: Math.max(1, Number(e.target.value) || 2.0),
                             })
                           }
-                          className="w-20 min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3 text-center font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                          className="w-20 min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 text-center font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                         />
                       </div>
                     </div>
@@ -540,7 +540,7 @@ export const OnboardingFlow: React.FC = () => {
                           className={`min-h-[44px] rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
                             form.overtimeCalculationMode === 'daily'
                               ? 'bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211]'
-                              : 'bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5]'
+                              : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                           }`}
                         >
                           Günlük hedef ({form.dailyWorkHours} sa)
@@ -553,7 +553,7 @@ export const OnboardingFlow: React.FC = () => {
                           className={`min-h-[44px] rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
                             form.overtimeCalculationMode === 'weekly'
                               ? 'bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211]'
-                              : 'bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5]'
+                              : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                           }`}
                         >
                           Haftalık hedef ({form.weeklyWorkHours} sa)
@@ -608,7 +608,7 @@ export const OnboardingFlow: React.FC = () => {
                           className={`w-full min-h-[60px] flex items-center justify-between rounded-2xl p-4 border text-left transition-colors ${
                             active
                               ? 'border-[#159B61] dark:border-[#39D98A] bg-[#159B61]/8 dark:bg-[#39D98A]/10'
-                              : 'border-black/[0.06] dark:border-white/[0.06] bg-[#EEF2EF]/60 dark:bg-[#222925]/60'
+                              : 'border-[#CFD8D2] dark:border-white/[0.07] bg-[#EEF2EF]/75 dark:bg-[#222925]/60'
                           }`}
                         >
                           <div className="flex items-center gap-3.5">
@@ -616,7 +616,7 @@ export const OnboardingFlow: React.FC = () => {
                               className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                                 active
                                   ? 'bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211]'
-                                  : 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#77827B] dark:text-[#929B95]'
+                                  : 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#77827B] dark:text-[#929B95]'
                               }`}
                             >
                               <Icon className="w-5 h-5" />
@@ -657,7 +657,7 @@ export const OnboardingFlow: React.FC = () => {
                   setError(null);
                   setStep((s) => s - 1);
                 }}
-                className="min-h-[48px] px-4 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5] text-sm font-medium flex items-center justify-center gap-1.5"
+                className="min-h-[48px] px-4 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5] text-sm font-medium flex items-center justify-center gap-1.5"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Geri</span>

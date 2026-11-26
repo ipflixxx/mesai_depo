@@ -176,7 +176,7 @@ export const CalculatorsPage: React.FC = () => {
       </header>
 
       {/* Calculator Category Selector */}
-      <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07]">
+      <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08]">
         {(
           [
             { id: 'raise', label: 'Zam', icon: TrendingUp },
@@ -207,7 +207,7 @@ export const CalculatorsPage: React.FC = () => {
 
       {/* 1. ZAM HESAPLAMA */}
       {activeTab === 'raise' && (
-        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6 space-y-5">
+        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-bold text-[#17221B] dark:text-[#F4F7F5]">
@@ -218,13 +218,13 @@ export const CalculatorsPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] sm:w-56">
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] sm:w-56">
               <button
                 type="button"
                 onClick={() => setRaiseMode('percent')}
                 className={`min-h-[34px] rounded-lg text-xs font-medium transition-colors ${
                   raiseMode === 'percent'
-                    ? 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5]'
+                    ? 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                     : 'text-[#77827B] dark:text-[#929B95]'
                 }`}
               >
@@ -235,7 +235,7 @@ export const CalculatorsPage: React.FC = () => {
                 onClick={() => setRaiseMode('target')}
                 className={`min-h-[34px] rounded-lg text-xs font-medium transition-colors ${
                   raiseMode === 'target'
-                    ? 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5]'
+                    ? 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                     : 'text-[#77827B] dark:text-[#929B95]'
                 }`}
               >
@@ -255,7 +255,7 @@ export const CalculatorsPage: React.FC = () => {
                 min="0"
                 value={currentSalary}
                 onChange={(e) => setCurrentSalary(e.target.value)}
-                className="w-full min-h-[46px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                className="w-full min-h-[46px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
               />
             </div>
 
@@ -270,7 +270,7 @@ export const CalculatorsPage: React.FC = () => {
                   step="0.5"
                   value={raisePercent}
                   onChange={(e) => setRaisePercent(e.target.value)}
-                  className="w-full min-h-[46px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                  className="w-full min-h-[46px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                 />
               </div>
             ) : (
@@ -284,7 +284,7 @@ export const CalculatorsPage: React.FC = () => {
                   min="0"
                   value={targetSalary}
                   onChange={(e) => setTargetSalary(e.target.value)}
-                  className="w-full min-h-[46px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                  className="w-full min-h-[46px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                 />
               </div>
             )}
@@ -300,7 +300,7 @@ export const CalculatorsPage: React.FC = () => {
                   className={`min-h-[38px] rounded-xl font-mono text-xs font-semibold transition-colors ${
                     Number(raisePercent) === pct
                       ? 'bg-[#17221B] dark:bg-[#F4F7F5] text-white dark:text-[#101211]'
-                      : 'bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5]'
+                      : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                   }`}
                 >
                   %{pct}
@@ -310,7 +310,7 @@ export const CalculatorsPage: React.FC = () => {
           )}
 
           {/* Result */}
-          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] p-5 space-y-4">
+          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-5 space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs text-[#77827B] dark:text-[#929B95]">Yeni aylık maaş</p>
@@ -326,7 +326,7 @@ export const CalculatorsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.06] grid grid-cols-3 gap-3">
+            <div className="pt-3 border-t border-[#CFD8D2] dark:border-white/[0.06] grid grid-cols-3 gap-3">
               <div>
                 <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Aylık fark</p>
                 <p className="mt-0.5 font-mono text-sm font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums">
@@ -354,7 +354,7 @@ export const CalculatorsPage: React.FC = () => {
 
       {/* 2. TAZMİNAT HESAPLAMA (KIDEM & İHBAR) */}
       {activeTab === 'severance' && (
-        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6 space-y-5">
+        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-5">
           <div>
             <h2 className="text-base font-bold text-[#17221B] dark:text-[#F4F7F5]">
               Kıdem ve İhbar Tazminatı
@@ -373,7 +373,7 @@ export const CalculatorsPage: React.FC = () => {
                 type="date"
                 value={hireDate}
                 onChange={(e) => setHireDate(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
+                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
             <div>
@@ -384,7 +384,7 @@ export const CalculatorsPage: React.FC = () => {
                 type="date"
                 value={exitDate}
                 onChange={(e) => setExitDate(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
+                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
           </div>
@@ -400,7 +400,7 @@ export const CalculatorsPage: React.FC = () => {
                 min="0"
                 value={grossSalary}
                 onChange={(e) => setGrossSalary(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5]"
+                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
             <div>
@@ -413,12 +413,12 @@ export const CalculatorsPage: React.FC = () => {
                 min="0"
                 value={monthlyBenefits}
                 onChange={(e) => setMonthlyBenefits(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5]"
+                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-2xl bg-[#EEF2EF]/60 dark:bg-[#222925]/60 px-4 py-3">
+          <div className="flex items-center justify-between rounded-2xl bg-[#EEF2EF]/75 dark:bg-[#222925]/60 border border-[#CFD8D2] dark:border-white/[0.07] px-4 py-3">
             <span className="text-xs font-medium text-[#17221B] dark:text-[#F4F7F5]">
               İhbar tazminatını da hesapla
             </span>
@@ -428,7 +428,7 @@ export const CalculatorsPage: React.FC = () => {
               className={`min-h-[34px] px-3.5 rounded-xl text-xs font-semibold transition-colors ${
                 includeNotice
                   ? 'bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211]'
-                  : 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#77827B] dark:text-[#929B95]'
+                  : 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#77827B] dark:text-[#929B95]'
               }`}
             >
               {includeNotice ? 'Dahil' : 'Hariç'}
@@ -436,7 +436,7 @@ export const CalculatorsPage: React.FC = () => {
           </div>
 
           {/* Results */}
-          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] p-5 space-y-4">
+          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-5 space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs text-[#77827B] dark:text-[#929B95]">
@@ -456,7 +456,7 @@ export const CalculatorsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.06] space-y-2 text-xs">
+            <div className="pt-3 border-t border-[#CFD8D2] dark:border-white/[0.06] space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-[#77827B] dark:text-[#929B95]">
                   Net kıdem tazminatı (damga vergisi düşülmüş)
@@ -489,7 +489,7 @@ export const CalculatorsPage: React.FC = () => {
 
       {/* 3. MESAİ ÜCRETİ SİMÜLATÖRÜ */}
       {activeTab === 'overtime' && (
-        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6 space-y-5">
+        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-5">
           <div>
             <h2 className="text-base font-bold text-[#17221B] dark:text-[#F4F7F5]">
               Hızlı Mesai Hesaplama
@@ -510,7 +510,7 @@ export const CalculatorsPage: React.FC = () => {
                 min="0"
                 value={simSalary}
                 onChange={(e) => setSimSalary(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
+                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
             <div>
@@ -523,7 +523,7 @@ export const CalculatorsPage: React.FC = () => {
                 min="1"
                 value={simWeeklyHours}
                 onChange={(e) => setSimWeeklyHours(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
+                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
             <div>
@@ -537,7 +537,7 @@ export const CalculatorsPage: React.FC = () => {
                 min="0"
                 value={simHours}
                 onChange={(e) => setSimHours(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
+                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
           </div>
@@ -549,7 +549,7 @@ export const CalculatorsPage: React.FC = () => {
               className={`min-h-[44px] rounded-2xl font-semibold text-sm transition-colors ${
                 simRate === 50
                   ? 'bg-[#D97706] dark:bg-[#F59E0B] text-white dark:text-[#101211]'
-                  : 'bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5]'
+                  : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
               }`}
             >
               %50 (1.5x)
@@ -559,15 +559,15 @@ export const CalculatorsPage: React.FC = () => {
               onClick={() => setSimRate(100)}
               className={`min-h-[44px] rounded-2xl font-semibold text-sm transition-colors ${
                 simRate === 100
-                  ? 'bg-[#D97706] dark:bg-[#F59E0B] text-white dark:text-[#101211]'
-                  : 'bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5]'
+                  ? 'bg-[#7C3AED] dark:bg-[#A78BFA] text-white dark:text-[#101211]'
+                  : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
               }`}
             >
               %100 (2.0x)
             </button>
           </div>
 
-          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] p-5 flex items-center justify-between gap-4">
+          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-5 flex items-center justify-between gap-4">
             <div>
               <p className="text-xs text-[#77827B] dark:text-[#929B95]">
                 Kazanılacak ek mesai tutarı
@@ -588,7 +588,7 @@ export const CalculatorsPage: React.FC = () => {
 
       {/* 4. YILLIK İZİN HESAPLAMA */}
       {activeTab === 'leave' && (
-        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6 space-y-5">
+        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-5">
           <div>
             <h2 className="text-base font-bold text-[#17221B] dark:text-[#F4F7F5]">
               Yıllık İzin Hakkı & Ücret Karşılığı
@@ -610,7 +610,7 @@ export const CalculatorsPage: React.FC = () => {
                 step="1"
                 value={tenureYears}
                 onChange={(e) => setTenureYears(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
+                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
             <div>
@@ -623,7 +623,7 @@ export const CalculatorsPage: React.FC = () => {
                 min="0"
                 value={unusedLeaveDays}
                 onChange={(e) => setUnusedLeaveDays(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
+                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
             <div>
@@ -636,12 +636,12 @@ export const CalculatorsPage: React.FC = () => {
                 min="0"
                 value={leaveSalary}
                 onChange={(e) => setLeaveSalary(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
+                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
           </div>
 
-          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] p-5 space-y-3">
+          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-5 space-y-3">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-[#77827B] dark:text-[#929B95]">Yıllık izin hakkın</p>
@@ -658,7 +658,7 @@ export const CalculatorsPage: React.FC = () => {
                 </p>
               </div>
             </div>
-            <p className="pt-2 border-t border-black/[0.06] dark:border-white/[0.06] text-[11px] text-[#77827B] dark:text-[#929B95]">
+            <p className="pt-2 border-t border-[#CFD8D2] dark:border-white/[0.06] text-[11px] text-[#77827B] dark:text-[#929B95]">
               1–5 yıl: 14 gün · 5–15 yıl: 20 gün · 15 yıl ve üzeri: 26 gün (18 yaş altı ve 50 yaş üstü çalışanlar için en az 20 iş günü).
             </p>
           </div>

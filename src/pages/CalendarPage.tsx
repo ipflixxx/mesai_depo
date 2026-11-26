@@ -124,10 +124,12 @@ export const CalendarPage: React.FC = () => {
         onJumpToday={jumpToday}
         showEarningsInCells={true}
         currency={settings.currency}
+        overtimeMultiplier={settings.overtimeMultiplier}
+        weekendMultiplier={settings.weekendMultiplier}
       />
 
       {/* 2. Takvimin Altında Kazanılan Para ve %50 / %100 Mesai Dağılımı */}
-      <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6 space-y-5">
+      <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-5">
         <div>
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-medium text-[#77827B] dark:text-[#929B95]">
@@ -145,11 +147,11 @@ export const CalendarPage: React.FC = () => {
 
         {/* %50 ve %100 Mesailerden Gelen Para */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] p-4">
+          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-4">
             <p className="text-xs font-medium text-[#77827B] dark:text-[#929B95]">
               %50 Mesailerden Gelen
             </p>
-            <p className="mt-1.5 font-display text-lg sm:text-xl font-extrabold text-[#159B61] dark:text-[#39D98A] tabular-nums truncate">
+            <p className="mt-1.5 font-display text-lg sm:text-xl font-extrabold text-[#D97706] dark:text-[#F59E0B] tabular-nums truncate">
               {overtimeRateBreakdown.rate50Earnings > 0 ? '+' : ''}
               {formatCurrency(overtimeRateBreakdown.rate50Earnings, settings.currency)}
             </p>
@@ -158,11 +160,11 @@ export const CalendarPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] p-4">
+          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-4">
             <p className="text-xs font-medium text-[#77827B] dark:text-[#929B95]">
               %100 Mesailerden Gelen
             </p>
-            <p className="mt-1.5 font-display text-lg sm:text-xl font-extrabold text-[#D97706] dark:text-[#F59E0B] tabular-nums truncate">
+            <p className="mt-1.5 font-display text-lg sm:text-xl font-extrabold text-[#7C3AED] dark:text-[#A78BFA] tabular-nums truncate">
               {overtimeRateBreakdown.rate100Earnings > 0 ? '+' : ''}
               {formatCurrency(overtimeRateBreakdown.rate100Earnings, settings.currency)}
             </p>
@@ -172,7 +174,7 @@ export const CalendarPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between gap-3 text-xs">
+        <div className="pt-3 border-t border-[#D7E0DA] dark:border-white/[0.06] flex items-center justify-between gap-3 text-xs">
           <span className="text-[#77827B] dark:text-[#929B95]">
             Bu ay toplam ek mesai
           </span>

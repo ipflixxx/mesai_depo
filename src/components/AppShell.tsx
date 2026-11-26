@@ -79,7 +79,7 @@ export const AppShell: React.FC = () => {
       {/* Bottom Fixed Tab Bar (5 tabs: Ana Sayfa > İstatistik > Kazanç > Hesaplama > Ayarlar) */}
       <nav
         aria-label="Ana gezinme"
-        className="fixed bottom-0 left-0 right-0 z-40 bg-[#FFFFFF]/92 dark:bg-[#191E1B]/92 backdrop-blur-md border-t border-black/[0.06] dark:border-white/[0.06] pb-safe"
+        className="fixed bottom-0 left-0 right-0 z-40 bg-[#FFFFFF]/92 dark:bg-[#191E1B]/92 backdrop-blur-md border-t border-[#CBD5CF] dark:border-white/[0.07] pb-safe"
       >
         <div className="grid grid-cols-5 gap-0.5 sm:gap-1 h-16 max-w-2xl mx-auto px-1.5 sm:px-2">
           {NAV_ITEMS.map((item) => {
@@ -92,7 +92,7 @@ export const AppShell: React.FC = () => {
                 className={({ isActive }) =>
                   `my-1.5 rounded-2xl flex flex-col items-center justify-center gap-0.5 min-h-[44px] px-1 transition-colors ${
                     isActive
-                      ? 'bg-[#EEF2EF] dark:bg-[#222925] text-[#159B61] dark:text-[#39D98A]'
+                      ? 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#159B61] dark:text-[#39D98A]'
                       : 'text-[#77827B] dark:text-[#929B95] hover:text-[#17221B] dark:hover:text-[#F4F7F5]'
                   }`
                 }

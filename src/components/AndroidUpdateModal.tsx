@@ -162,7 +162,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
       }}
     >
       <div
-        className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.08] dark:border-white/[0.08] p-6 pb-8 sm:pb-6 space-y-5"
+        className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#C8D3CD] dark:border-white/[0.09] p-6 pb-8 sm:pb-6 space-y-5"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -204,7 +204,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
         </div>
 
         {/* Version transition summary */}
-        <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] p-4 flex items-center justify-between gap-3">
+        <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Mevcut sürüm</p>
             <p className="mt-0.5 font-mono text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
@@ -230,7 +230,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
             <h3 className="text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5]">
               Sürüm Notları
             </h3>
-            <ul className="max-h-36 overflow-y-auto space-y-1.5 rounded-2xl bg-[#EEF2EF]/60 dark:bg-[#222925]/60 p-3.5 text-xs text-[#17221B] dark:text-[#F4F7F5] leading-relaxed">
+            <ul className="max-h-36 overflow-y-auto space-y-1.5 rounded-2xl bg-[#EEF2EF]/70 dark:bg-[#222925]/60 border border-[#CFD8D2] dark:border-white/[0.07] p-3.5 text-xs text-[#17221B] dark:text-[#F4F7F5] leading-relaxed">
               {manifest.releaseNotes.map((note, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#159B61] dark:bg-[#39D98A] shrink-0" />
@@ -243,7 +243,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
 
         {/* Security & SHA-256 info for direct APK channel */}
         {!isPlayChannel && manifest && (
-          <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.06] p-3.5 space-y-1.5 text-xs">
+          <div className="rounded-2xl border border-[#CFD8D2] dark:border-white/[0.07] p-3.5 space-y-1.5 text-xs">
             <div className="flex items-center justify-between gap-2">
               <span className="flex items-center gap-1.5 font-medium text-[#17221B] dark:text-[#F4F7F5]">
                 <ShieldCheck className="w-4 h-4 text-[#159B61] dark:text-[#39D98A]" />
@@ -318,7 +318,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
               type="button"
               disabled={isBusy}
               onClick={onClose}
-              className="flex-1 min-h-[46px] rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5] text-sm font-semibold disabled:opacity-50"
+              className="flex-1 min-h-[46px] rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5] text-sm font-semibold disabled:opacity-50"
             >
               Daha Sonra
             </button>

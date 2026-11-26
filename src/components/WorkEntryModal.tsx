@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Calendar, ChevronDown, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Calendar, ChevronDown, Minus, Plus, Trash2, X } from 'lucide-react';
 import { useMesai } from '../context/MesaiContext';
 import { WorkEntryInput, WorkType } from '../types/mesai';
 import {
@@ -193,6 +193,17 @@ export const WorkEntryModal: React.FC = () => {
       ? 'normal'
       : 'overtime';
 
+  const parsedHoursValue = (() => {
+    const num = Number(hoursInput.replace(',', '.'));
+    return Number.isFinite(num) ? num : 0;
+  })();
+
+  const adjustHours = (delta: number) => {
+    const base = parsedHoursValue > 0 ? parsedHoursValue : 0;
+    const next = Math.min(24, Math.max(0.5, Math.round((base + delta) * 2) / 2));
+    setHoursInput(String(next));
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!date) {
@@ -235,7 +246,7 @@ export const WorkEntryModal: React.FC = () => {
       onClick={closeEntryModal}
     >
       <div
-        className="w-full sm:max-w-md max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.08] overflow-hidden"
+        className="w-full sm:max-w-md max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#C8D3CD] dark:border-white/[0.09] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Mobile drag handle */}
@@ -244,7 +255,7 @@ export const WorkEntryModal: React.FC = () => {
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#D7E0DA] dark:border-white/[0.06]">
           <h2 className="text-base font-bold text-[#17221B] dark:text-[#F4F7F5]">
             {editingEntry ? 'Kaydı Düzenle' : 'Mesai Ekle'}
           </h2>
@@ -255,7 +266,7 @@ export const WorkEntryModal: React.FC = () => {
               value={date}
               onChange={(e) => setDate(e.target.value)}
               aria-label="Tarih"
-              className="min-h-[36px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-2.5 font-mono text-xs text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+              className="min-h-[36px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 font-mono text-xs text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
             />
             <button
               type="button"
@@ -289,7 +300,7 @@ export const WorkEntryModal: React.FC = () => {
                   className={`min-h-[44px] px-3 rounded-2xl text-xs font-semibold transition-colors ${
                     active
                       ? 'bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211]'
-                      : 'bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5]'
+                      : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                   }`}
                 >
                   {item.label}
@@ -300,13 +311,13 @@ export const WorkEntryModal: React.FC = () => {
 
           {/* Sub-selector only when Weekend/Holiday or Leave is selected */}
           {activeCategory === 'weekend' && (
-            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925]">
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07]">
               <button
                 type="button"
                 onClick={() => setWorkType('weekend')}
                 className={`min-h-[34px] rounded-lg text-xs font-medium transition-colors ${
                   workType === 'weekend'
-                    ? 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5]'
+                    ? 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                     : 'text-[#77827B] dark:text-[#929B95]'
                 }`}
               >
@@ -317,7 +328,7 @@ export const WorkEntryModal: React.FC = () => {
                 onClick={() => setWorkType('holiday')}
                 className={`min-h-[34px] rounded-lg text-xs font-medium transition-colors ${
                   workType === 'holiday'
-                    ? 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5]'
+                    ? 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                     : 'text-[#77827B] dark:text-[#929B95]'
                 }`}
               >
@@ -327,13 +338,13 @@ export const WorkEntryModal: React.FC = () => {
           )}
 
           {activeCategory === 'leave' && (
-            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925]">
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07]">
               <button
                 type="button"
                 onClick={() => setWorkType('paid_leave')}
                 className={`min-h-[34px] rounded-lg text-xs font-medium transition-colors ${
                   workType === 'paid_leave'
-                    ? 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5]'
+                    ? 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                     : 'text-[#77827B] dark:text-[#929B95]'
                 }`}
               >
@@ -344,7 +355,7 @@ export const WorkEntryModal: React.FC = () => {
                 onClick={() => setWorkType('unpaid_leave')}
                 className={`min-h-[34px] rounded-lg text-xs font-medium transition-colors ${
                   workType === 'unpaid_leave'
-                    ? 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5]'
+                    ? 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                     : 'text-[#77827B] dark:text-[#929B95]'
                 }`}
               >
@@ -372,22 +383,42 @@ export const WorkEntryModal: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
+                  <div className="flex items-center gap-2 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-1.5">
+                    <button
+                      type="button"
+                      onClick={() => adjustHours(-0.5)}
+                      disabled={parsedHoursValue <= 0.5}
+                      aria-label="Saati yarım saat azalt"
+                      className="min-h-[44px] min-w-[48px] flex items-center justify-center rounded-xl bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5] border border-[#C8D3CD] dark:border-white/[0.08] active:scale-95 transition-transform disabled:opacity-35"
+                    >
+                      <Minus className="w-4 h-4 stroke-[2.5]" />
+                    </button>
+
+                    <div className="flex-1 flex items-center justify-center gap-1.5 px-2">
                       <input
-                        type="number"
+                        type="text"
                         inputMode="decimal"
-                        step="0.5"
-                        min="0.5"
-                        max="24"
+                        aria-label="Mesai saati"
                         value={hoursInput}
-                        onChange={(e) => setHoursInput(e.target.value)}
-                        className="w-full min-h-[48px] rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] px-4 pr-12 font-mono text-xl font-bold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                        onChange={(e) =>
+                          setHoursInput(e.target.value.replace(/[^0-9.,]/g, ''))
+                        }
+                        className="w-16 bg-transparent text-center font-mono text-xl font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums focus:outline-none"
                       />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-[#77827B] dark:text-[#929B95]">
+                      <span className="text-xs font-medium text-[#77827B] dark:text-[#929B95] select-none">
                         saat
                       </span>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => adjustHours(0.5)}
+                      disabled={parsedHoursValue >= 24}
+                      aria-label="Saati yarım saat artır"
+                      className="min-h-[44px] min-w-[48px] flex items-center justify-center rounded-xl bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5] border border-[#C8D3CD] dark:border-white/[0.08] active:scale-95 transition-transform disabled:opacity-35"
+                    >
+                      <Plus className="w-4 h-4 stroke-[2.5]" />
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-4 gap-2">
@@ -401,7 +432,7 @@ export const WorkEntryModal: React.FC = () => {
                           className={`min-h-[40px] rounded-xl font-mono text-xs font-semibold transition-colors ${
                             active
                               ? 'bg-[#17221B] dark:bg-[#F4F7F5] text-white dark:text-[#101211]'
-                              : 'bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5]'
+                              : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                           }`}
                         >
                           {h} saat
@@ -434,7 +465,7 @@ export const WorkEntryModal: React.FC = () => {
                         type="time"
                         value={startTime}
                         onChange={(e) => setStartTime(e.target.value)}
-                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
+                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                       />
                     </div>
                     <div>
@@ -445,7 +476,7 @@ export const WorkEntryModal: React.FC = () => {
                         type="time"
                         value={endTime}
                         onChange={(e) => setEndTime(e.target.value)}
-                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
+                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                       />
                     </div>
                     <div>
@@ -454,13 +485,14 @@ export const WorkEntryModal: React.FC = () => {
                       </label>
                       <input
                         type="number"
+                        inputMode="numeric"
                         min={0}
                         max={480}
                         value={breakMinutes}
                         onChange={(e) =>
                           setBreakMinutes(Math.max(0, Number(e.target.value) || 0))
                         }
-                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
+                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>
                   </div>
@@ -479,7 +511,7 @@ export const WorkEntryModal: React.FC = () => {
                     className={`min-h-[46px] rounded-2xl px-3 flex items-center justify-center gap-1.5 text-sm font-semibold transition-colors ${
                       overtimeRatePercent === 50
                         ? 'bg-[#D97706] dark:bg-[#F59E0B] text-white dark:text-[#101211]'
-                        : 'bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5]'
+                        : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                     }`}
                   >
                     <span className="font-mono font-bold">%50</span>
@@ -490,8 +522,8 @@ export const WorkEntryModal: React.FC = () => {
                     onClick={() => setOvertimeRatePercent(100)}
                     className={`min-h-[46px] rounded-2xl px-3 flex items-center justify-center gap-1.5 text-sm font-semibold transition-colors ${
                       overtimeRatePercent === 100
-                        ? 'bg-[#D97706] dark:bg-[#F59E0B] text-white dark:text-[#101211]'
-                        : 'bg-[#EEF2EF] dark:bg-[#222925] text-[#17221B] dark:text-[#F4F7F5]'
+                        ? 'bg-[#7C3AED] dark:bg-[#A78BFA] text-white dark:text-[#101211]'
+                        : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                     }`}
                   >
                     <span className="font-mono font-bold">%100</span>
@@ -517,12 +549,12 @@ export const WorkEntryModal: React.FC = () => {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Not (ör. akşam mesaisi)"
-              className="w-full min-h-[42px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 text-sm text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+              className="w-full min-h-[42px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 text-sm text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
             />
           )}
 
           {preview.isPlanned && (
-            <div className="flex items-center gap-2 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3 py-2 text-xs text-[#77827B] dark:text-[#929B95]">
+            <div className="flex items-center gap-2 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 py-2 text-xs text-[#77827B] dark:text-[#929B95]">
               <Calendar className="w-3.5 h-3.5 shrink-0" />
               <span>Gelecek tarihli kayıtlar planlı olarak saklanır.</span>
             </div>
@@ -536,7 +568,7 @@ export const WorkEntryModal: React.FC = () => {
           )}
 
           {/* Single Clean Summary Row */}
-          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] px-4 py-3.5 flex items-center justify-between gap-3">
+          <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-4 py-3.5 flex items-center justify-between gap-3">
             <div className="text-xs text-[#77827B] dark:text-[#929B95]">
               {preview.isValid
                 ? isLeave
@@ -569,7 +601,7 @@ export const WorkEntryModal: React.FC = () => {
                 className={`min-h-[48px] px-4 rounded-2xl text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
                   confirmDelete
                     ? 'bg-red-600 text-white'
-                    : 'bg-[#EEF2EF] dark:bg-[#222925] text-red-600 dark:text-red-400'
+                    : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-red-600 dark:text-red-400'
                 }`}
               >
                 <Trash2 className="w-4 h-4" />

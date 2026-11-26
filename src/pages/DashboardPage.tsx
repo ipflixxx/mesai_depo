@@ -87,7 +87,7 @@ export const DashboardPage: React.FC = () => {
           <Link
             to="/ayarlar"
             aria-label="Ayarlar"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5] hover:bg-[#EEF2EF] dark:hover:bg-[#222925] transition-colors"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] text-[#17221B] dark:text-[#F4F7F5] hover:bg-[#EEF2EF] dark:hover:bg-[#222925] transition-colors"
           >
             <SettingsIcon className="w-5 h-5" />
           </Link>
@@ -106,16 +106,18 @@ export const DashboardPage: React.FC = () => {
         onNextMonth={handleNextMonth}
         onJumpToday={handleJumpToday}
         showHoursInCells={true}
+        overtimeMultiplier={settings.overtimeMultiplier}
+        weekendMultiplier={settings.weekendMultiplier}
       />
 
       {/* 2. Bu Ayki Toplam Kazanç Kartı (Hemen Tablonun Altında) */}
-      <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-7">
+      <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-7">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-medium text-[#77827B] dark:text-[#929B95]">
             {isCurrentMonth ? 'Bu Ayki Toplam Kazancım' : `${monthTitle} Kazancı`}
           </h2>
-          <span className="font-mono text-xs text-[#77827B] dark:text-[#929B95] tabular-nums">
-            Saatlik {formatCurrency(hourlyRate, settings.currency, 2)}
+          <span className="text-xs text-[#77827B] dark:text-[#929B95]">
+            {settings.salaryType === 'gross' ? 'Brüt' : 'Net'}
           </span>
         </div>
 
@@ -128,7 +130,38 @@ export const DashboardPage: React.FC = () => {
           {settings.salaryType === 'gross' && ' · Brüt tutar üzerinden (kesintiler hariç)'}
         </p>
 
-        <div className="mt-5 pt-4 border-t border-black/[0.06] dark:border-white/[0.06] grid grid-cols-3 gap-3">
+        {/* Saatlik Ücretlerim */}
+        <div className="mt-5 pt-4 border-t border-[#D7E0DA] dark:border-white/[0.06]">
+          <p className="text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-2.5">
+            Saatlik Ücretlerim
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Normal (1x)</p>
+              <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums truncate">
+                {formatCurrency(hourlyRate, settings.currency, 2)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-[#D97706] dark:text-[#F59E0B] font-medium">
+                %50 Mesai (1.5x)
+              </p>
+              <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#D97706] dark:text-[#F59E0B] tabular-nums truncate">
+                {formatCurrency(hourlyRate * 1.5, settings.currency, 2)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-[#7C3AED] dark:text-[#A78BFA] font-medium">
+                %100 Mesai (2x)
+              </p>
+              <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#7C3AED] dark:text-[#A78BFA] tabular-nums truncate">
+                {formatCurrency(hourlyRate * 2, settings.currency, 2)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-[#D7E0DA] dark:border-white/[0.06] grid grid-cols-3 gap-3">
           <div>
             <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Sabit maaş</p>
             <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
@@ -149,7 +182,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-black/[0.06] dark:border-white/[0.06] grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div className="mt-4 pt-4 border-t border-[#D7E0DA] dark:border-white/[0.06] grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <div>
             <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Toplam çalışma</p>
             <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
@@ -178,7 +211,7 @@ export const DashboardPage: React.FC = () => {
       </section>
 
       {/* 4. Son Kazanç Özeti */}
-      <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6">
+      <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3 mb-4">
           <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
             Son Kazanç Özeti
@@ -191,7 +224,7 @@ export const DashboardPage: React.FC = () => {
           </Link>
         </div>
 
-        <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06] text-sm">
+        <div className="divide-y divide-[#D7E0DA] dark:divide-white/[0.06] text-sm">
           <div className="py-2.5 flex items-center justify-between gap-4">
             <span className="text-[#77827B] dark:text-[#929B95]">Aylık sabit maaş</span>
             <span className="font-mono font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">

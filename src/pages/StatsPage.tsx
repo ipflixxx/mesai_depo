@@ -115,7 +115,7 @@ export const StatsPage: React.FC = () => {
     typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
   const accentColor = isDark ? '#39D98A' : '#159B61';
   const mutedBarColor = isDark ? '#35413A' : '#CBD5CE';
-  const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(23,34,27,0.09)';
   const tickColor = isDark ? '#929B95' : '#77827B';
 
   const hasData = periodEntries.length > 0 && summary.totalMinutes > 0;
@@ -133,7 +133,7 @@ export const StatsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] sm:w-72">
+        <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] sm:w-72">
           {(
             [
               { id: 'weekly', label: 'Haftalık' },
@@ -159,8 +159,8 @@ export const StatsPage: React.FC = () => {
 
       {/* Empty State when no real records exist for period */}
       {!hasData ? (
-        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] px-6 py-14 text-center">
-          <div className="w-12 h-12 mx-auto rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] flex items-center justify-center mb-4 text-[#77827B] dark:text-[#929B95]">
+        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] px-6 py-14 text-center">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] flex items-center justify-center mb-4 text-[#77827B] dark:text-[#929B95]">
             <BarChart3 className="w-6 h-6" />
           </div>
           <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
@@ -182,28 +182,28 @@ export const StatsPage: React.FC = () => {
         <>
           {/* Detailed Metric Cards */}
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-4 sm:p-5">
+            <div className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-5">
               <p className="text-xs text-[#77827B] dark:text-[#929B95]">Toplam çalışma</p>
               <p className="mt-2 font-mono text-xl font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
                 {formatDuration(summary.totalMinutes)}
               </p>
             </div>
 
-            <div className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-4 sm:p-5">
+            <div className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-5">
               <p className="text-xs text-[#77827B] dark:text-[#929B95]">Fazla mesai saati</p>
               <p className="mt-2 font-mono text-xl font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums">
                 {formatDuration(summary.overtimeMinutes)}
               </p>
             </div>
 
-            <div className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-4 sm:p-5">
+            <div className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-5">
               <p className="text-xs text-[#77827B] dark:text-[#929B95]">Fazla mesai kazancı</p>
               <p className="mt-2 font-mono text-xl font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums">
                 {formatCurrency(summary.overtimeEarnings, settings.currency)}
               </p>
             </div>
 
-            <div className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-4 sm:p-5">
+            <div className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-5">
               <p className="text-xs text-[#77827B] dark:text-[#929B95]">Hafta sonu & tatil</p>
               <p className="mt-2 font-mono text-xl font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
                 {formatCurrency(summary.weekendAndHolidayEarnings, settings.currency)}
@@ -212,7 +212,7 @@ export const StatsPage: React.FC = () => {
           </section>
 
           {/* Secondary Metric Strip */}
-          <section className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-3 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-black/[0.06] dark:divide-white/[0.06]">
+          <section className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-3 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-[#D7E0DA] dark:divide-white/[0.06]">
             <div className="pt-1 sm:pt-0">
               <p className="text-xs text-[#77827B] dark:text-[#929B95]">Çalışılan gün sayısı</p>
               <p className="mt-1 font-mono text-lg font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
@@ -241,7 +241,7 @@ export const StatsPage: React.FC = () => {
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Daily Work Hours */}
-            <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6">
+            <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5]">
@@ -271,7 +271,7 @@ export const StatsPage: React.FC = () => {
                     <Tooltip
                       contentStyle={{
                         backgroundColor: isDark ? '#191E1B' : '#FFFFFF',
-                        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+                        borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#CBD5CF',
                         borderRadius: '14px',
                         fontSize: '12px',
                         color: isDark ? '#F4F7F5' : '#17221B',
@@ -289,7 +289,7 @@ export const StatsPage: React.FC = () => {
             </section>
 
             {/* Daily Extra Earnings */}
-            <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6">
+            <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6">
               <div className="mb-4">
                 <h2 className="text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5]">
                   Günlük Ek Kazanç
@@ -323,7 +323,7 @@ export const StatsPage: React.FC = () => {
                     <Tooltip
                       contentStyle={{
                         backgroundColor: isDark ? '#191E1B' : '#FFFFFF',
-                        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+                        borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#CBD5CF',
                         borderRadius: '14px',
                         fontSize: '12px',
                         color: isDark ? '#F4F7F5' : '#17221B',
@@ -349,7 +349,7 @@ export const StatsPage: React.FC = () => {
 
           {/* Monthly Earnings Comparison */}
           {monthlyComparisonData.length > 0 && (
-            <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6">
+            <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6">
               <div className="mb-4">
                 <h2 className="text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5]">
                   Aylık Kazanç Karşılaştırması ({currentYear})
@@ -377,7 +377,7 @@ export const StatsPage: React.FC = () => {
                     <Tooltip
                       contentStyle={{
                         backgroundColor: isDark ? '#191E1B' : '#FFFFFF',
-                        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+                        borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#CBD5CF',
                         borderRadius: '14px',
                         fontSize: '12px',
                         color: isDark ? '#F4F7F5' : '#17221B',

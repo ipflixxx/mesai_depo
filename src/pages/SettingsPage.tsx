@@ -134,7 +134,7 @@ export const SettingsPage: React.FC = () => {
       <form onSubmit={handleSaveProfileAndWork} className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* Kişisel Bilgiler */}
-          <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6 space-y-4">
+          <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
                 Kişisel bilgiler
@@ -152,7 +152,7 @@ export const SettingsPage: React.FC = () => {
                 type="text"
                 value={form.userName}
                 onChange={(e) => setForm({ ...form, userName: e.target.value })}
-                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
               />
             </div>
 
@@ -169,7 +169,7 @@ export const SettingsPage: React.FC = () => {
                   onChange={(e) =>
                     setForm({ ...form, monthlySalary: Number(e.target.value) || 0 })
                   }
-                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                 />
               </div>
 
@@ -177,7 +177,7 @@ export const SettingsPage: React.FC = () => {
                 <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                   Maaş türü
                 </label>
-                <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925]">
+                <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07]">
                   {(['net', 'gross'] as SalaryType[]).map((type) => (
                     <button
                       key={type}
@@ -185,7 +185,7 @@ export const SettingsPage: React.FC = () => {
                       onClick={() => setForm({ ...form, salaryType: type })}
                       className={`min-h-[36px] rounded-lg text-xs font-medium transition-colors ${
                         form.salaryType === type
-                          ? 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5]'
+                          ? 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                           : 'text-[#77827B] dark:text-[#929B95]'
                       }`}
                     >
@@ -201,7 +201,7 @@ export const SettingsPage: React.FC = () => {
                 <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                   Para birimi
                 </label>
-                <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925]">
+                <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07]">
                   {(['TRY', 'USD', 'EUR'] as CurrencyCode[]).map((cur) => (
                     <button
                       key={cur}
@@ -209,7 +209,7 @@ export const SettingsPage: React.FC = () => {
                       onClick={() => setForm({ ...form, currency: cur })}
                       className={`min-h-[36px] rounded-lg font-mono text-xs font-medium transition-colors ${
                         form.currency === cur
-                          ? 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5]'
+                          ? 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                           : 'text-[#77827B] dark:text-[#929B95]'
                       }`}
                     >
@@ -234,14 +234,14 @@ export const SettingsPage: React.FC = () => {
                       paymentDay: Math.max(1, Math.min(31, Number(e.target.value) || 1)),
                     })
                   }
-                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                 />
               </div>
             </div>
           </section>
 
           {/* Çalışma Düzeni */}
-          <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6 space-y-4">
+          <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-4">
             <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
               Çalışma düzeni
             </h2>
@@ -259,7 +259,7 @@ export const SettingsPage: React.FC = () => {
                   onChange={(e) =>
                     setForm({ ...form, weeklyWorkDays: Number(e.target.value) || 5 })
                   }
-                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
+                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
 
@@ -276,7 +276,7 @@ export const SettingsPage: React.FC = () => {
                   onChange={(e) =>
                     setForm({ ...form, dailyWorkHours: Number(e.target.value) || 8 })
                   }
-                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
+                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
 
@@ -293,7 +293,7 @@ export const SettingsPage: React.FC = () => {
                   onChange={(e) =>
                     setForm({ ...form, weeklyWorkHours: Number(e.target.value) || 40 })
                   }
-                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
+                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
             </div>
@@ -307,7 +307,7 @@ export const SettingsPage: React.FC = () => {
                   type="time"
                   value={form.workStartTime}
                   onChange={(e) => setForm({ ...form, workStartTime: e.target.value })}
-                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
+                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
               <div>
@@ -318,7 +318,7 @@ export const SettingsPage: React.FC = () => {
                   type="time"
                   value={form.workEndTime}
                   onChange={(e) => setForm({ ...form, workEndTime: e.target.value })}
-                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
+                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
               <div>
@@ -333,7 +333,7 @@ export const SettingsPage: React.FC = () => {
                   onChange={(e) =>
                     setForm({ ...form, breakMinutes: Number(e.target.value) || 0 })
                   }
-                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
+                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
             </div>
@@ -351,7 +351,7 @@ export const SettingsPage: React.FC = () => {
                   onChange={(e) =>
                     setForm({ ...form, overtimeMultiplier: Number(e.target.value) || 1.5 })
                   }
-                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
+                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
               <div>
@@ -366,7 +366,7 @@ export const SettingsPage: React.FC = () => {
                   onChange={(e) =>
                     setForm({ ...form, weekendMultiplier: Number(e.target.value) || 2.0 })
                   }
-                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
+                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
             </div>
@@ -375,7 +375,7 @@ export const SettingsPage: React.FC = () => {
               <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                 Fazla mesai hesaplama esası
               </label>
-              <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925]">
+              <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07]">
                 {(
                   [
                     { id: 'daily', label: 'Günlük hedef' },
@@ -393,7 +393,7 @@ export const SettingsPage: React.FC = () => {
                     }
                     className={`min-h-[36px] rounded-lg text-xs font-medium transition-colors ${
                       form.overtimeCalculationMode === m.id
-                        ? 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5]'
+                        ? 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                         : 'text-[#77827B] dark:text-[#929B95]'
                     }`}
                   >
@@ -427,7 +427,7 @@ export const SettingsPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Görünüm */}
-        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6 space-y-4">
+        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-4">
           <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
             Görünüm
           </h2>
@@ -449,7 +449,7 @@ export const SettingsPage: React.FC = () => {
                   className={`min-h-[68px] rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 border transition-colors ${
                     active
                       ? 'border-[#159B61] dark:border-[#39D98A] bg-[#159B61]/10 dark:bg-[#39D98A]/12 text-[#159B61] dark:text-[#39D98A]'
-                      : 'border-black/[0.06] dark:border-white/[0.06] bg-[#EEF2EF]/60 dark:bg-[#222925]/60 text-[#77827B] dark:text-[#929B95]'
+                      : 'border-[#CFD8D2] dark:border-white/[0.07] bg-[#EEF2EF]/75 dark:bg-[#222925]/60 text-[#77827B] dark:text-[#929B95]'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -461,7 +461,7 @@ export const SettingsPage: React.FC = () => {
         </section>
 
         {/* Veri Yönetimi */}
-        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6 space-y-4">
+        <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-4">
           <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
             Veri yönetimi
           </h2>
@@ -470,7 +470,7 @@ export const SettingsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => exportEntriesToCSV(entries, settings)}
-              className="min-h-[46px] px-3.5 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5] flex items-center justify-center gap-2 hover:opacity-90"
+              className="min-h-[46px] px-3.5 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5] flex items-center justify-center gap-2 hover:opacity-90"
             >
               <FileSpreadsheet className="w-4 h-4 text-[#159B61] dark:text-[#39D98A] shrink-0" />
               <span>CSV Dışa Aktar</span>
@@ -479,7 +479,7 @@ export const SettingsPage: React.FC = () => {
             <button
               type="button"
               onClick={handlePDFReport}
-              className="min-h-[46px] px-3.5 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5] flex items-center justify-center gap-2 hover:opacity-90"
+              className="min-h-[46px] px-3.5 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5] flex items-center justify-center gap-2 hover:opacity-90"
             >
               <FileText className="w-4 h-4 text-[#159B61] dark:text-[#39D98A] shrink-0" />
               <span>PDF Raporu</span>
@@ -488,7 +488,7 @@ export const SettingsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => exportJSONBackup(settings, entries)}
-              className="min-h-[46px] px-3.5 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5] flex items-center justify-center gap-2 hover:opacity-90"
+              className="min-h-[46px] px-3.5 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5] flex items-center justify-center gap-2 hover:opacity-90"
             >
               <Download className="w-4 h-4 shrink-0" />
               <span>JSON Yedekle</span>
@@ -497,7 +497,7 @@ export const SettingsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="min-h-[46px] px-3.5 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5] flex items-center justify-center gap-2 hover:opacity-90"
+              className="min-h-[46px] px-3.5 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5] flex items-center justify-center gap-2 hover:opacity-90"
             >
               <Upload className="w-4 h-4 shrink-0" />
               <span>JSON Geri Yükle</span>
@@ -526,12 +526,12 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {/* Uygulama & Gizlilik */}
-      <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-black/[0.06] dark:border-white/[0.07] p-5 sm:p-6 space-y-4">
+      <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-4">
         <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
           Uygulama
         </h2>
 
-        <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06] text-sm">
+        <div className="divide-y divide-[#D7E0DA] dark:divide-white/[0.06] text-sm">
           <div className="py-3 flex items-start justify-between gap-4">
             <div>
               <div className="font-medium text-[#17221B] dark:text-[#F4F7F5]">Hakkında</div>
@@ -593,7 +593,7 @@ export const SettingsPage: React.FC = () => {
             className={`min-h-[44px] px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors ${
               confirmReset
                 ? 'bg-red-600 text-white'
-                : 'bg-[#EEF2EF] dark:bg-[#222925] text-red-600 dark:text-red-400'
+                : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-red-600 dark:text-red-400'
             }`}
           >
             <RotateCcw className="w-4 h-4" />
