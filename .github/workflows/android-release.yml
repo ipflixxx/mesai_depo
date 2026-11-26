@@ -34,11 +34,12 @@ concurrency:
   group: android-release-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
 
     steps:
       - name: Pre-Flight Validate Required Signing & Release Secrets
@@ -342,7 +343,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-out
-          APK_SRC=$(find android/app/build/outputs/apk/direct/release -name "*.apk" -print -quit)
+          APK_SRC=$(find android/app/build/outputs/apk/direct/release -name "*.apk" ! -name "*-unsigned.apk" -print -quit)
+          if [ -z "$APK_SRC" ]; then
+            echo "::error::İmzalı Direct Release APK bulunamadı."
+            exit 1
+          fi
           APK_NAME="mesai-v${VERSION_NAME}-direct-release.apk"
           cp "$APK_SRC" "release-out/${APK_NAME}"
 
@@ -380,11 +385,25 @@ jobs:
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
           cat release-out/latest.json
 
-      - name: Upload Play Store Signed AAB to Private Build Artifacts
+      - name: Upload Play Store Signed AAB to Build Artifacts
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: mesai-v${{ steps.meta.outputs.version_name }}-play-aab
           path: android/app/build/outputs/bundle/playRelease/*.aab
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Direct Signed APK & Manifest to Build Artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mesai-v${{ steps.meta.outputs.version_name }}-direct-apk
+          path: |
+            release-out/*.apk
+            release-out/*.sha256
+            release-out/latest.json
+          if-no-files-found: error
           retention-days: 30
 
       - name: Publish Direct APK & latest.json Atomically to ipflixxx/mesai_releases
@@ -396,31 +415,316 @@ jobs:
           set +x
           set -euo pipefail
 
-          # 1. Upload Direct APK and checksum to GitHub Release first
-          if gh release view "v${VERSION_NAME}" --repo ipflixxx/mesai_releases > /dev/null 2>&1; then
-            gh release upload "v${VERSION_NAME}" \
-              "release-out/${APK_NAME}" \
-              "release-out/${APK_NAME}.sha256" \
-              --repo ipflixxx/mesai_releases --clobber
-          else
-            gh release create "v${VERSION_NAME}" \
-              "release-out/${APK_NAME}" \
-              "release-out/${APK_NAME}.sha256" \
-              --repo ipflixxx/mesai_releases \
-              --title "MESAİ v${VERSION_NAME}" \
-              --notes-file <(node -e 'const m=require("./release-out/latest.json"); console.log(m.releaseNotes.map(n=>"- "+n).join("\n"));')
-          fi
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
 
-          # 2. Verify release asset is present before updating latest.json on main
-          gh release view "v${VERSION_NAME}" --repo ipflixxx/mesai_releases --json assets \
-            | node -e '
-                const d = JSON.parse(require("fs").readFileSync(0, "utf8"));
-                const ok = (d.assets || []).some((a) => a.name === process.env.APK_NAME);
-                if (!ok) throw new Error("Uploaded APK asset verification failed!");
-              '
+            const token = (process.env.GH_TOKEN || "").trim();
+            const owner = "ipflixxx";
+            const repo = "mesai_releases";
+            const versionName = process.env.VERSION_NAME;
+            const tag = `v${versionName}`;
+            const apkName = process.env.APK_NAME;
+            const shaName = `${apkName}.sha256`;
 
-          # 3. Update latest.json on main branch only after APK release is verified
-          git clone --branch main --single-branch "https://x-access-token:${GH_TOKEN}@github.com/ipflixxx/mesai_releases.git" releases-repo
+            if (!token) {
+              throw new Error("RELEASES_PUSH_TOKEN eksik.");
+            }
+
+            const manifest = JSON.parse(fs.readFileSync("release-out/latest.json", "utf8"));
+            const releaseNotes = (manifest.releaseNotes || []).map((n) => `- ${n}`).join("\n");
+            const apiBase = `https://api.github.com/repos/${owner}/${repo}`;
+            const transientStatuses = new Set([500, 502, 503, 504]);
+            const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+            function sanitizeApiBody(rawText) {
+              if (!rawText) return "";
+              try {
+                const parsed = JSON.parse(rawText);
+                const summary = {
+                  message: parsed.message,
+                  errors: parsed.errors,
+                  documentation_url: parsed.documentation_url,
+                };
+                return JSON.stringify(summary);
+              } catch {
+                return rawText.slice(0, 500).replace(/[\r\n]+/g, " ");
+              }
+            }
+
+            async function apiRequest(url, options = {}, retryLabel = "GitHub API") {
+              const maxAttempts = 5;
+              for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                let res;
+                let text = "";
+                try {
+                  res = await fetch(url, {
+                    ...options,
+                    headers: {
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": `Bearer ${token}`,
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "mesai-android-release-pipeline",
+                      ...(options.headers || {}),
+                    },
+                  });
+                  text = await res.text();
+                } catch (netErr) {
+                  console.error(`[${retryLabel}] Ağ hatası (deneme ${attempt}/${maxAttempts}): ${netErr.message}`);
+                  if (attempt === maxAttempts) throw netErr;
+                  await sleep(5000 * attempt);
+                  continue;
+                }
+
+                const reqId = res.headers.get("x-github-request-id") || "-";
+                if (transientStatuses.has(res.status)) {
+                  console.error(
+                    `[${retryLabel}] Geçici HTTP ${res.status} (request-id: ${reqId}, deneme ${attempt}/${maxAttempts}): ${sanitizeApiBody(text)}`
+                  );
+                  if (attempt === maxAttempts) {
+                    const err = new Error(`${retryLabel} kalıcı HTTP ${res.status} hatası verdi: ${sanitizeApiBody(text)}`);
+                    err.status = res.status;
+                    throw err;
+                  }
+                  await sleep(5000 * Math.pow(2, attempt - 1));
+                  continue;
+                }
+
+                let json = null;
+                try {
+                  json = text ? JSON.parse(text) : null;
+                } catch {
+                  json = null;
+                }
+                return { status: res.status, reqId, text, json };
+              }
+            }
+
+            async function findExistingRelease() {
+              const byTag = await apiRequest(
+                `${apiBase}/releases/tags/${encodeURIComponent(tag)}`,
+                { method: "GET" },
+                `Release kontrol (${tag})`
+              );
+              if (byTag.status === 200 && byTag.json) {
+                return byTag.json;
+              }
+              if (byTag.status !== 404) {
+                throw new Error(
+                  `Mevcut release kontrolü başarısız (HTTP ${byTag.status}, request-id: ${byTag.reqId}): ${sanitizeApiBody(byTag.text)}`
+                );
+              }
+
+              // Also check draft releases for the same tag
+              const listRes = await apiRequest(
+                `${apiBase}/releases?per_page=30`,
+                { method: "GET" },
+                "Release listesi kontrolü"
+              );
+              if (listRes.status === 200 && Array.isArray(listRes.json)) {
+                const draftMatch = listRes.json.find((r) => r && r.tag_name === tag);
+                if (draftMatch) return draftMatch;
+              }
+              return null;
+            }
+
+            async function ensureRelease() {
+              const existing = await findExistingRelease();
+              if (existing) {
+                console.log(`Mevcut release bulundu (id: ${existing.id}, tag: ${tag}); yeniden oluşturulmayacak.`);
+                return existing;
+              }
+
+              const repoRes = await apiRequest(apiBase, { method: "GET" }, "Hedef depo kontrolü");
+              if (repoRes.status !== 200 || !repoRes.json) {
+                throw new Error(
+                  `Hedef depo okunamadı (HTTP ${repoRes.status}, request-id: ${repoRes.reqId}): ${sanitizeApiBody(repoRes.text)}`
+                );
+              }
+              const defaultBranch = repoRes.json.default_branch || "main";
+              const branchRes = await apiRequest(
+                `${apiBase}/git/ref/heads/${encodeURIComponent(defaultBranch)}`,
+                { method: "GET" },
+                `Dal kontrolü (${defaultBranch})`
+              );
+              if (branchRes.status === 404) {
+                throw new Error(
+                  `Hedef depo (${owner}/${repo}) henüz başlangıç commit içermiyor (${defaultBranch} dalı yok). Release oluşturmadan önce ${defaultBranch} dalında en az bir başlangıç commit bulunmalıdır.`
+                );
+              }
+
+              const payload = {
+                tag_name: tag,
+                target_commitish: defaultBranch,
+                name: `MESAİ ${tag}`,
+                body: releaseNotes,
+                draft: false,
+                prerelease: false,
+              };
+
+              const maxCreateAttempts = 4;
+              for (let attempt = 1; attempt <= maxCreateAttempts; attempt++) {
+                // Re-check before each attempt so we never recreate an already created release
+                const recheck = await findExistingRelease();
+                if (recheck) {
+                  console.log(`Release zaten mevcut (id: ${recheck.id}, tag: ${tag}); mevcut release kullanılıyor.`);
+                  return recheck;
+                }
+
+                let res;
+                let text = "";
+                try {
+                  res = await fetch(`${apiBase}/releases`, {
+                    method: "POST",
+                    headers: {
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": `Bearer ${token}`,
+                      "Content-Type": "application/json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "mesai-android-release-pipeline",
+                    },
+                    body: JSON.stringify(payload),
+                  });
+                  text = await res.text();
+                } catch (netErr) {
+                  console.error(`[Release oluşturma] Ağ hatası (deneme ${attempt}/${maxCreateAttempts}): ${netErr.message}`);
+                  if (attempt === maxCreateAttempts) throw netErr;
+                  await sleep(5000 * attempt);
+                  continue;
+                }
+
+                const reqId = res.headers.get("x-github-request-id") || "-";
+                if (res.status === 201) {
+                  const created = JSON.parse(text);
+                  console.log(`Yeni GitHub Release oluşturuldu (id: ${created.id}, tag: ${tag}).`);
+                  return created;
+                }
+
+                if (res.status === 422) {
+                  console.warn(`[Release oluşturma] HTTP 422 alındı (request-id: ${reqId}): ${sanitizeApiBody(text)}`);
+                  const after422 = await findExistingRelease();
+                  if (after422) {
+                    console.log(`Mevcut release bulundu ve kullanılıyor (id: ${after422.id}).`);
+                    return after422;
+                  }
+                  throw new Error(`Release oluşturulamadı (HTTP 422, request-id: ${reqId}): ${sanitizeApiBody(text)}`);
+                }
+
+                if (transientStatuses.has(res.status)) {
+                  console.error(
+                    `[Release oluşturma] Geçici HTTP ${res.status} (request-id: ${reqId}, deneme ${attempt}/${maxCreateAttempts}): ${sanitizeApiBody(text)}`
+                  );
+                  if (attempt === maxCreateAttempts) {
+                    throw new Error(
+                      `GitHub Release API geçici sunucu hatası devam ediyor (HTTP ${res.status}, request-id: ${reqId}): ${sanitizeApiBody(text)}`
+                    );
+                  }
+                  await sleep(5000 * Math.pow(2, attempt - 1));
+                  continue;
+                }
+
+                throw new Error(
+                  `Release oluşturma başarısız (HTTP ${res.status}, request-id: ${reqId}): ${sanitizeApiBody(text)}`
+                );
+              }
+            }
+
+            async function uploadAsset(release, filePath, contentType) {
+              const fileName = path.basename(filePath);
+              const fileBuffer = fs.readFileSync(filePath);
+              const uploadBase = release.upload_url.replace(/\{[^}]*\}$/, "");
+
+              const maxUploadAttempts = 4;
+              for (let attempt = 1; attempt <= maxUploadAttempts; attempt++) {
+                // Remove existing or partial asset with the same name before uploading
+                const latestReleaseRes = await apiRequest(
+                  `${apiBase}/releases/${release.id}`,
+                  { method: "GET" },
+                  `Asset kontrol (${fileName})`
+                );
+                if (latestReleaseRes.status === 200 && latestReleaseRes.json) {
+                  const oldAsset = (latestReleaseRes.json.assets || []).find((a) => a.name === fileName);
+                  if (oldAsset) {
+                    const delRes = await apiRequest(
+                      `${apiBase}/releases/assets/${oldAsset.id}`,
+                      { method: "DELETE" },
+                      `Eski asset temizleme (${fileName})`
+                    );
+                    if (delRes.status !== 204 && delRes.status !== 404) {
+                      throw new Error(`Eski asset silinemedi (${fileName}, HTTP ${delRes.status})`);
+                    }
+                  }
+                }
+
+                const uploadRes = await apiRequest(
+                  `${uploadBase}?name=${encodeURIComponent(fileName)}`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": contentType,
+                      "Content-Length": String(fileBuffer.length),
+                    },
+                    body: fileBuffer,
+                  },
+                  `Asset yükleme (${fileName})`
+                );
+
+                if (uploadRes.status === 201 && uploadRes.json && uploadRes.json.state === "uploaded") {
+                  console.log(`Release asset yüklendi: ${fileName} (${uploadRes.json.size} byte)`);
+                  return uploadRes.json;
+                }
+
+                console.error(
+                  `[Asset yükleme (${fileName})] HTTP ${uploadRes.status} (request-id: ${uploadRes.reqId}, deneme ${attempt}/${maxUploadAttempts}): ${sanitizeApiBody(uploadRes.text)}`
+                );
+                if (attempt === maxUploadAttempts) {
+                  throw new Error(`Asset yüklenemedi: ${fileName} (HTTP ${uploadRes.status})`);
+                }
+                await sleep(5000 * attempt);
+              }
+            }
+
+            (async () => {
+              const release = await ensureRelease();
+              await uploadAsset(release, `release-out/${apkName}`, "application/vnd.android.package-archive");
+              await uploadAsset(release, `release-out/${shaName}`, "text/plain; charset=utf-8");
+
+              const verifyRes = await apiRequest(
+                `${apiBase}/releases/${release.id}`,
+                { method: "GET" },
+                "Release asset doğrulama"
+              );
+              if (verifyRes.status !== 200 || !verifyRes.json) {
+                throw new Error(`Release doğrulaması başarısız (HTTP ${verifyRes.status}).`);
+              }
+              const uploadedApk = (verifyRes.json.assets || []).find(
+                (a) => a.name === apkName && a.state === "uploaded" && Number(a.size) === Number(manifest.sizeBytes)
+              );
+              if (!uploadedApk) {
+                throw new Error("Yüklenen APK asset boyut veya durum doğrulamasından geçemedi!");
+              }
+              console.log(`Release ve APK asset doğrulandı: ${apkName}`);
+            })().catch((err) => {
+              console.error(`::error::Release yayınlama başarısız (APK ve AAB Build Artifacts olarak yüklendi): ${err.message}`);
+              process.exit(1);
+            });
+          '
+
+          # Update latest.json on main branch only after APK release and asset upload are verified
+          ASKPASS_SCRIPT=$(mktemp)
+          chmod 700 "$ASKPASS_SCRIPT"
+          cat << 'EOF' > "$ASKPASS_SCRIPT"
+          #!/bin/sh
+          case "$1" in
+            *Username*) printf '%s\n' "x-access-token" ;;
+            *Password*) printf '%s\n' "$GH_TOKEN" ;;
+          esac
+          EOF
+          trap 'rm -f "$ASKPASS_SCRIPT"' EXIT
+
+          export GIT_ASKPASS="$ASKPASS_SCRIPT"
+          export GIT_TERMINAL_PROMPT=0
+          git clone --branch main --single-branch "https://github.com/ipflixxx/mesai_releases.git" releases-repo
           cp release-out/latest.json releases-repo/latest.json
           cd releases-repo
           git config user.name "mesai-release-bot"
