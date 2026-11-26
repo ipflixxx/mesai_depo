@@ -6,6 +6,7 @@
 import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
+import { MesaiWordmark } from './components/MesaiWordmark';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { MesaiProvider, useMesai } from './context/MesaiContext';
 import { CalculatorsPage } from './pages/CalculatorsPage';
@@ -19,10 +20,8 @@ const AppContent: React.FC = () => {
 
   if (isHydrating) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F6F8F6] dark:bg-[#101211]">
-        <div className="font-display text-xl font-extrabold tracking-tight text-[#17221B] dark:text-[#F4F7F5]">
-          MESAİ
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-[#F5F3EE] dark:bg-[#202522]">
+        <MesaiWordmark size="lg" />
       </div>
     );
   }

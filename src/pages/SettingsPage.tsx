@@ -12,6 +12,7 @@ import {
   Sun,
   Upload,
 } from 'lucide-react';
+import { MesaiWordmark } from '../components/MesaiWordmark';
 import { useMesai } from '../context/MesaiContext';
 import {
   CurrencyCode,
@@ -527,9 +528,12 @@ export const SettingsPage: React.FC = () => {
 
       {/* Uygulama & Gizlilik */}
       <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-4">
-        <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-          Uygulama
-        </h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
+            Uygulama
+          </h2>
+          <MesaiWordmark size="xs" />
+        </div>
 
         <div className="divide-y divide-[#D7E0DA] dark:divide-white/[0.06] text-sm">
           <div className="py-3 flex items-start justify-between gap-4">

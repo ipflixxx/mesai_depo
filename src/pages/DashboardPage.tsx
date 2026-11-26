@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { MesaiWordmark } from '../components/MesaiWordmark';
 import { MonthlyCalendarGrid } from '../components/MonthlyCalendarGrid';
 import { useMesai } from '../context/MesaiContext';
 import {
@@ -75,9 +76,13 @@ export const DashboardPage: React.FC = () => {
       {/* Üst Karşılama Alanı */}
       <header className="flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-[#77827B] dark:text-[#929B95] truncate">
-            {monthTitle}
-          </p>
+          <div className="mb-1.5 flex items-center gap-2.5">
+            <MesaiWordmark size="xs" className="shrink-0" />
+            <span className="h-3 w-px bg-[#CBD5CF] dark:bg-white/[0.12] shrink-0" />
+            <p className="text-xs font-medium text-[#77827B] dark:text-[#929B95] truncate">
+              {monthTitle}
+            </p>
+          </div>
           <h1 className="text-xl sm:text-2xl font-bold text-[#17221B] dark:text-[#F4F7F5] tracking-tight truncate">
             Merhaba{settings.userName ? `, ${settings.userName}` : ''}
           </h1>

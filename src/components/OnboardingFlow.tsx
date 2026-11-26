@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Moon, Smartphone, Sun } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMesai } from '../context/MesaiContext';
+import { MesaiWordmark } from './MesaiWordmark';
 import { CurrencyCode, SalaryType, ThemeMode, UserSettings } from '../types/mesai';
 import {
   DEFAULT_SETTINGS,
@@ -170,9 +171,7 @@ export const OnboardingFlow: React.FC = () => {
       <div className="w-full max-w-lg mx-auto">
         {/* Brand & Progress */}
         <div className="flex items-center justify-between mb-8">
-          <span className="font-display text-lg font-extrabold tracking-tight text-[#17221B] dark:text-[#F4F7F5]">
-            MESAİ
-          </span>
+          <MesaiWordmark size="sm" />
           <span className="font-mono text-xs text-[#77827B] dark:text-[#929B95] tabular-nums">
             Adım {step} / {TOTAL_STEPS}
           </span>
