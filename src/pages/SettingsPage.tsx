@@ -13,6 +13,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { MesaiWordmark } from '../components/MesaiWordmark';
+import { NumericInput, parseLocaleNumber } from '../components/NumericInput';
 import { useMesai } from '../context/MesaiContext';
 import {
   CurrencyCode,
@@ -43,7 +44,18 @@ export const SettingsPage: React.FC = () => {
   } = useMesai();
 
   const [form, setForm] = useState(settings);
+  const [numericDrafts, setNumericDrafts] = useState(() => ({
+    monthlySalary: settings.monthlySalary > 0 ? String(settings.monthlySalary) : '',
+    paymentDay: String(settings.paymentDay),
+    weeklyWorkDays: String(settings.weeklyWorkDays),
+    dailyWorkHours: String(settings.dailyWorkHours),
+    weeklyWorkHours: String(settings.weeklyWorkHours),
+    breakMinutes: String(settings.breakMinutes),
+    overtimeMultiplier: String(settings.overtimeMultiplier),
+    weekendMultiplier: String(settings.weekendMultiplier),
+  }));
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [updateCheckMessage, setUpdateCheckMessage] = useState<string | null>(null);
   const [restoreStatus, setRestoreStatus] = useState<{
     type: 'success' | 'error';
@@ -53,18 +65,74 @@ export const SettingsPage: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const setDraft = (key: keyof typeof numericDrafts, value: string) => {
+    setSaveError(null);
+    setNumericDrafts((prev) => ({ ...prev, [key]: value }));
+  };
+
   const handleSaveProfileAndWork = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaveError(null);
+    setSavedNotice(null);
+
+    const parsedSalary = parseLocaleNumber(numericDrafts.monthlySalary);
+    const parsedPayDay = parseLocaleNumber(numericDrafts.paymentDay);
+    const parsedDays = parseLocaleNumber(numericDrafts.weeklyWorkDays);
+    const parsedDaily = parseLocaleNumber(numericDrafts.dailyWorkHours);
+    const parsedWeekly = parseLocaleNumber(numericDrafts.weeklyWorkHours);
+    const parsedBreak = parseLocaleNumber(numericDrafts.breakMinutes);
+    const parsedOt = parseLocaleNumber(numericDrafts.overtimeMultiplier);
+    const parsedWk = parseLocaleNumber(numericDrafts.weekendMultiplier);
+
+    if (parsedSalary === null || parsedSalary < 0) {
+      setSaveError('Lütfen geçerli bir aylık maaş tutarı girin.');
+      return;
+    }
+    if (
+      parsedPayDay === null ||
+      !Number.isInteger(parsedPayDay) ||
+      parsedPayDay < 1 ||
+      parsedPayDay > 31
+    ) {
+      setSaveError('Ödeme günü 1 ile 31 arasında olmalıdır.');
+      return;
+    }
+    if (parsedDays === null || !Number.isInteger(parsedDays) || parsedDays < 1 || parsedDays > 7) {
+      setSaveError('Haftalık çalışma günü 1 ile 7 arasında olmalıdır.');
+      return;
+    }
+    if (parsedDaily === null || parsedDaily < 1 || parsedDaily > 24) {
+      setSaveError('Günlük çalışma süresi 1 ile 24 saat arasında olmalıdır.');
+      return;
+    }
+    if (parsedWeekly === null || parsedWeekly < 1 || parsedWeekly > 100) {
+      setSaveError('Haftalık normal saat 1 ile 100 arasında olmalıdır.');
+      return;
+    }
+    if (parsedBreak === null || parsedBreak < 0 || parsedBreak > 240) {
+      setSaveError('Mola süresi 0 ile 240 dakika arasında olmalıdır.');
+      return;
+    }
+    if (parsedOt === null || parsedOt < 1) {
+      setSaveError('Fazla mesai çarpanı en az 1.0 olmalıdır.');
+      return;
+    }
+    if (parsedWk === null || parsedWk < 1) {
+      setSaveError('Hafta sonu çarpanı en az 1.0 olmalıdır.');
+      return;
+    }
+
     await updateSettings({
       ...form,
-      monthlySalary: Math.max(0, Number(form.monthlySalary) || 0),
-      paymentDay: Math.max(1, Math.min(31, Number(form.paymentDay) || 15)),
-      weeklyWorkDays: Math.max(1, Math.min(7, Number(form.weeklyWorkDays) || 5)),
-      dailyWorkHours: Math.max(1, Math.min(24, Number(form.dailyWorkHours) || 8)),
-      weeklyWorkHours: Math.max(1, Math.min(100, Number(form.weeklyWorkHours) || 40)),
-      breakMinutes: Math.max(0, Number(form.breakMinutes) || 0),
-      overtimeMultiplier: Math.max(1, Number(form.overtimeMultiplier) || 1.5),
-      weekendMultiplier: Math.max(1, Number(form.weekendMultiplier) || 2.0),
+      themeMode: settings.themeMode,
+      monthlySalary: parsedSalary,
+      paymentDay: parsedPayDay,
+      weeklyWorkDays: parsedDays,
+      dailyWorkHours: parsedDaily,
+      weeklyWorkHours: parsedWeekly,
+      breakMinutes: Math.round(parsedBreak),
+      overtimeMultiplier: parsedOt,
+      weekendMultiplier: parsedWk,
     });
     setSavedNotice('Ayarlar kaydedildi ve kayıtlar güncellendi.');
     setTimeout(() => setSavedNotice(null), 3000);
@@ -83,6 +151,17 @@ export const SettingsPage: React.FC = () => {
       const { settings: nextSettings, entries: nextEntries } = parseAndValidateBackup(text);
       await restoreBackup(nextSettings, nextEntries);
       setForm(nextSettings);
+      setNumericDrafts({
+        monthlySalary:
+          nextSettings.monthlySalary > 0 ? String(nextSettings.monthlySalary) : '',
+        paymentDay: String(nextSettings.paymentDay),
+        weeklyWorkDays: String(nextSettings.weeklyWorkDays),
+        dailyWorkHours: String(nextSettings.dailyWorkHours),
+        weeklyWorkHours: String(nextSettings.weeklyWorkHours),
+        breakMinutes: String(nextSettings.breakMinutes),
+        overtimeMultiplier: String(nextSettings.overtimeMultiplier),
+        weekendMultiplier: String(nextSettings.weekendMultiplier),
+      });
       setRestoreStatus({
         type: 'success',
         message: `${nextEntries.length} mesai kaydı başarıyla geri yüklendi.`,
@@ -119,7 +198,13 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const hourlyRate = calculateHourlyRate(form);
+  const hourlyRate = calculateHourlyRate({
+    ...form,
+    monthlySalary: parseLocaleNumber(numericDrafts.monthlySalary) ?? 0,
+    weeklyWorkHours: parseLocaleNumber(numericDrafts.weeklyWorkHours) ?? form.weeklyWorkHours,
+    dailyWorkHours: parseLocaleNumber(numericDrafts.dailyWorkHours) ?? form.dailyWorkHours,
+    weeklyWorkDays: parseLocaleNumber(numericDrafts.weeklyWorkDays) ?? form.weeklyWorkDays,
+  });
 
   return (
     <div className="space-y-6">
@@ -162,15 +247,12 @@ export const SettingsPage: React.FC = () => {
                 <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                   Aylık maaş
                 </label>
-                <input
-                  type="number"
-                  min={0}
-                  step="any"
-                  value={form.monthlySalary}
-                  onChange={(e) =>
-                    setForm({ ...form, monthlySalary: Number(e.target.value) || 0 })
-                  }
-                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                <NumericInput
+                  allowDecimal
+                  value={numericDrafts.monthlySalary}
+                  onChange={(v) => setDraft('monthlySalary', v)}
+                  placeholder="Örn. 35000"
+                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                 />
               </div>
 
@@ -224,18 +306,11 @@ export const SettingsPage: React.FC = () => {
                 <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                   Ödeme günü
                 </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={form.paymentDay}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      paymentDay: Math.max(1, Math.min(31, Number(e.target.value) || 1)),
-                    })
-                  }
-                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                <NumericInput
+                  value={numericDrafts.paymentDay}
+                  onChange={(v) => setDraft('paymentDay', v)}
+                  placeholder="15"
+                  className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                 />
               </div>
             </div>
@@ -252,14 +327,10 @@ export const SettingsPage: React.FC = () => {
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                   Haftalık gün
                 </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={7}
-                  value={form.weeklyWorkDays}
-                  onChange={(e) =>
-                    setForm({ ...form, weeklyWorkDays: Number(e.target.value) || 5 })
-                  }
+                <NumericInput
+                  value={numericDrafts.weeklyWorkDays}
+                  onChange={(v) => setDraft('weeklyWorkDays', v)}
+                  placeholder="5"
                   className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
@@ -268,15 +339,11 @@ export const SettingsPage: React.FC = () => {
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                   Günlük saat
                 </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  min={1}
-                  max={24}
-                  value={form.dailyWorkHours}
-                  onChange={(e) =>
-                    setForm({ ...form, dailyWorkHours: Number(e.target.value) || 8 })
-                  }
+                <NumericInput
+                  allowDecimal
+                  value={numericDrafts.dailyWorkHours}
+                  onChange={(v) => setDraft('dailyWorkHours', v)}
+                  placeholder="8"
                   className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
@@ -285,15 +352,11 @@ export const SettingsPage: React.FC = () => {
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                   Haftalık saat
                 </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  min={1}
-                  max={100}
-                  value={form.weeklyWorkHours}
-                  onChange={(e) =>
-                    setForm({ ...form, weeklyWorkHours: Number(e.target.value) || 40 })
-                  }
+                <NumericInput
+                  allowDecimal
+                  value={numericDrafts.weeklyWorkHours}
+                  onChange={(v) => setDraft('weeklyWorkHours', v)}
+                  placeholder="40"
                   className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
@@ -326,14 +389,10 @@ export const SettingsPage: React.FC = () => {
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                   Mola (dk)
                 </label>
-                <input
-                  type="number"
-                  min={0}
-                  max={240}
-                  value={form.breakMinutes}
-                  onChange={(e) =>
-                    setForm({ ...form, breakMinutes: Number(e.target.value) || 0 })
-                  }
+                <NumericInput
+                  value={numericDrafts.breakMinutes}
+                  onChange={(v) => setDraft('breakMinutes', v)}
+                  placeholder="60"
                   className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
@@ -344,14 +403,11 @@ export const SettingsPage: React.FC = () => {
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                   Fazla mesai çarpanı
                 </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min={1}
-                  value={form.overtimeMultiplier}
-                  onChange={(e) =>
-                    setForm({ ...form, overtimeMultiplier: Number(e.target.value) || 1.5 })
-                  }
+                <NumericInput
+                  allowDecimal
+                  value={numericDrafts.overtimeMultiplier}
+                  onChange={(v) => setDraft('overtimeMultiplier', v)}
+                  placeholder="1.5"
                   className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
@@ -359,14 +415,11 @@ export const SettingsPage: React.FC = () => {
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                   Hafta sonu çarpanı
                 </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min={1}
-                  value={form.weekendMultiplier}
-                  onChange={(e) =>
-                    setForm({ ...form, weekendMultiplier: Number(e.target.value) || 2.0 })
-                  }
+                <NumericInput
+                  allowDecimal
+                  value={numericDrafts.weekendMultiplier}
+                  onChange={(v) => setDraft('weekendMultiplier', v)}
+                  placeholder="2.0"
                   className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                 />
               </div>
@@ -407,7 +460,9 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {savedNotice ? (
+          {saveError ? (
+            <p className="text-xs font-medium text-red-600 dark:text-red-400">{saveError}</p>
+          ) : savedNotice ? (
             <div className="flex items-center gap-2 text-xs font-medium text-[#159B61] dark:text-[#39D98A]">
               <Check className="w-4 h-4" />
               <span>{savedNotice}</span>
@@ -441,7 +496,7 @@ export const SettingsPage: React.FC = () => {
               ] as const
             ).map((opt) => {
               const Icon = opt.icon;
-              const active = form.themeMode === opt.id;
+              const active = settings.themeMode === opt.id;
               return (
                 <button
                   key={opt.id}

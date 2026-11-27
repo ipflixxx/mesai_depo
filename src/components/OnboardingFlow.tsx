@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Check, Moon, Smartphone, Sun } from 'lucide-reac
 import { AnimatePresence, motion } from 'motion/react';
 import { useMesai } from '../context/MesaiContext';
 import { MesaiWordmark } from './MesaiWordmark';
+import { NumericInput, parseLocaleNumber } from './NumericInput';
 import { CurrencyCode, SalaryType, ThemeMode, UserSettings } from '../types/mesai';
 import {
   DEFAULT_SETTINGS,
@@ -27,6 +28,25 @@ export const OnboardingFlow: React.FC = () => {
   });
   const [salaryText, setSalaryText] = useState<string>(
     form.monthlySalary > 0 ? String(form.monthlySalary) : ''
+  );
+  const [paymentDayText, setPaymentDayText] = useState<string>(String(form.paymentDay));
+  const [weeklyWorkDaysText, setWeeklyWorkDaysText] = useState<string>(
+    String(form.weeklyWorkDays)
+  );
+  const [dailyWorkHoursText, setDailyWorkHoursText] = useState<string>(
+    String(form.dailyWorkHours)
+  );
+  const [weeklyWorkHoursText, setWeeklyWorkHoursText] = useState<string>(
+    String(form.weeklyWorkHours)
+  );
+  const [breakMinutesText, setBreakMinutesText] = useState<string>(
+    String(form.breakMinutes)
+  );
+  const [overtimeMultiplierText, setOvertimeMultiplierText] = useState<string>(
+    String(form.overtimeMultiplier)
+  );
+  const [weekendMultiplierText, setWeekendMultiplierText] = useState<string>(
+    String(form.weekendMultiplier)
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -53,44 +73,103 @@ export const OnboardingFlow: React.FC = () => {
     void updateSettings({ themeMode: mode });
   };
 
-  const handleDailyOrDaysChange = (dailyHours: number, weeklyDays: number) => {
-    const safeDaily = Math.max(1, Math.min(24, dailyHours));
-    const safeDays = Math.max(1, Math.min(7, weeklyDays));
-    setForm((prev) => ({
-      ...prev,
-      dailyWorkHours: safeDaily,
-      weeklyWorkDays: safeDays,
-      weeklyWorkHours: Number((safeDaily * safeDays).toFixed(1)),
-    }));
+  const handleDailyHoursTextChange = (val: string) => {
+    setDailyWorkHoursText(val);
+    const d = parseLocaleNumber(val);
+    const days = parseLocaleNumber(weeklyWorkDaysText);
+    if (d !== null && d > 0 && days !== null && days > 0) {
+      setWeeklyWorkHoursText(String(Number((d * days).toFixed(1))));
+    }
+  };
+
+  const handleWeeklyDaysTextChange = (val: string) => {
+    setWeeklyWorkDaysText(val);
+    const days = parseLocaleNumber(val);
+    const d = parseLocaleNumber(dailyWorkHoursText);
+    if (d !== null && d > 0 && days !== null && days > 0) {
+      setWeeklyWorkHoursText(String(Number((d * days).toFixed(1))));
+    }
   };
 
   const validateAndNext = () => {
     setError(null);
     if (step === 1) {
-      const parsedSalary = Number(salaryText.replace(',', '.'));
+      const parsedSalary = parseLocaleNumber(salaryText);
+      const parsedPayDay = parseLocaleNumber(paymentDayText);
       if (!form.userName.trim()) {
         setError('Lütfen adınızı girin.');
         return;
       }
-      if (!Number.isFinite(parsedSalary) || parsedSalary <= 0) {
+      if (parsedSalary === null || parsedSalary <= 0) {
         setError('Lütfen geçerli bir aylık maaş tutarı girin.');
         return;
       }
-      setForm((prev) => ({ ...prev, monthlySalary: parsedSalary }));
+      if (
+        parsedPayDay === null ||
+        !Number.isInteger(parsedPayDay) ||
+        parsedPayDay < 1 ||
+        parsedPayDay > 31
+      ) {
+        setError('Lütfen 1 ile 31 arasında bir maaş ödeme günü girin.');
+        return;
+      }
+      setForm((prev) => ({
+        ...prev,
+        monthlySalary: parsedSalary,
+        paymentDay: parsedPayDay,
+      }));
     }
 
     if (step === 2) {
-      if (form.dailyWorkHours <= 0 || form.weeklyWorkDays <= 0) {
-        setError('Çalışma süresi ve gün sayısı 0’dan büyük olmalıdır.');
+      const parsedDays = parseLocaleNumber(weeklyWorkDaysText);
+      const parsedDaily = parseLocaleNumber(dailyWorkHoursText);
+      const parsedWeekly = parseLocaleNumber(weeklyWorkHoursText);
+      const parsedBreak = parseLocaleNumber(breakMinutesText);
+
+      if (parsedDays === null || !Number.isInteger(parsedDays) || parsedDays < 1 || parsedDays > 7) {
+        setError('Haftalık çalışma günü 1 ile 7 arasında olmalıdır.');
         return;
       }
+      if (parsedDaily === null || parsedDaily < 1 || parsedDaily > 24) {
+        setError('Günlük çalışma süresi 1 ile 24 saat arasında olmalıdır.');
+        return;
+      }
+      if (parsedWeekly === null || parsedWeekly < 1 || parsedWeekly > 100) {
+        setError('Haftalık toplam normal saat 1 ile 100 arasında olmalıdır.');
+        return;
+      }
+      if (parsedBreak === null || parsedBreak < 0 || parsedBreak > 240) {
+        setError('Günlük mola süresi 0 ile 240 dakika arasında olmalıdır.');
+        return;
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        weeklyWorkDays: parsedDays,
+        dailyWorkHours: parsedDaily,
+        weeklyWorkHours: parsedWeekly,
+        breakMinutes: Math.round(parsedBreak),
+      }));
     }
 
     if (step === 3) {
-      if (form.overtimeMultiplier < 1 || form.weekendMultiplier < 1) {
-        setError('Mesai çarpanları en az 1.0 olmalıdır.');
+      const parsedOt = parseLocaleNumber(overtimeMultiplierText);
+      const parsedWk = parseLocaleNumber(weekendMultiplierText);
+
+      if (parsedOt === null || parsedOt < 1) {
+        setError('Fazla mesai çarpanı en az 1.0 olmalıdır.');
         return;
       }
+      if (parsedWk === null || parsedWk < 1) {
+        setError('Hafta sonu ve tatil çarpanı en az 1.0 olmalıdır.');
+        return;
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        overtimeMultiplier: parsedOt,
+        weekendMultiplier: parsedWk,
+      }));
     }
 
     if (step < TOTAL_STEPS) {
@@ -101,7 +180,7 @@ export const OnboardingFlow: React.FC = () => {
   };
 
   const handleFinish = async () => {
-    const parsedSalary = Number(salaryText.replace(',', '.')) || form.monthlySalary;
+    const parsedSalary = parseLocaleNumber(salaryText) ?? form.monthlySalary;
     await completeOnboarding({
       ...form,
       monthlySalary: parsedSalary,
@@ -111,7 +190,10 @@ export const OnboardingFlow: React.FC = () => {
 
   const hourlyPreview = calculateHourlyRate({
     ...form,
-    monthlySalary: Number(salaryText.replace(',', '.')) || form.monthlySalary,
+    monthlySalary: parseLocaleNumber(salaryText) ?? form.monthlySalary,
+    weeklyWorkHours: parseLocaleNumber(weeklyWorkHoursText) ?? form.weeklyWorkHours,
+    dailyWorkHours: parseLocaleNumber(dailyWorkHoursText) ?? form.dailyWorkHours,
+    weeklyWorkDays: parseLocaleNumber(weeklyWorkDaysText) ?? form.weeklyWorkDays,
   });
 
   if (isDone) {
@@ -137,7 +219,7 @@ export const OnboardingFlow: React.FC = () => {
             <div className="flex items-center justify-between text-xs text-[#77827B] dark:text-[#929B95]">
               <span>Aylık maaş</span>
               <span className="font-mono font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-                {formatCurrency(Number(salaryText) || form.monthlySalary, form.currency)}
+                {formatCurrency(parseLocaleNumber(salaryText) ?? form.monthlySalary, form.currency)}
               </span>
             </div>
             <div className="flex items-center justify-between text-xs text-[#77827B] dark:text-[#929B95]">
@@ -241,12 +323,10 @@ export const OnboardingFlow: React.FC = () => {
                       <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                         Aylık maaş
                       </label>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        min="0"
+                      <NumericInput
+                        allowDecimal
                         value={salaryText}
-                        onChange={(e) => setSalaryText(e.target.value)}
+                        onChange={setSalaryText}
                         placeholder="Örn. 35000"
                         className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-semibold text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                       />
@@ -302,18 +382,11 @@ export const OnboardingFlow: React.FC = () => {
                       <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                         Maaş ödeme günü (Ayın günü)
                       </label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={31}
-                        value={form.paymentDay}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            paymentDay: Math.max(1, Math.min(31, Number(e.target.value) || 1)),
-                          })
-                        }
-                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                      <NumericInput
+                        value={paymentDayText}
+                        onChange={setPaymentDayText}
+                        placeholder="15"
+                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                       />
                     </div>
                   </div>
@@ -337,18 +410,11 @@ export const OnboardingFlow: React.FC = () => {
                         <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                           Haftalık çalışma günü
                         </label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={7}
-                          value={form.weeklyWorkDays}
-                          onChange={(e) =>
-                            handleDailyOrDaysChange(
-                              form.dailyWorkHours,
-                              Number(e.target.value) || 5
-                            )
-                          }
-                          className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                        <NumericInput
+                          value={weeklyWorkDaysText}
+                          onChange={handleWeeklyDaysTextChange}
+                          placeholder="5"
+                          className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                         />
                       </div>
 
@@ -356,19 +422,12 @@ export const OnboardingFlow: React.FC = () => {
                         <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                           Günlük çalışma (saat)
                         </label>
-                        <input
-                          type="number"
-                          step="0.5"
-                          min={1}
-                          max={24}
-                          value={form.dailyWorkHours}
-                          onChange={(e) =>
-                            handleDailyOrDaysChange(
-                              Number(e.target.value) || 8,
-                              form.weeklyWorkDays
-                            )
-                          }
-                          className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                        <NumericInput
+                          allowDecimal
+                          value={dailyWorkHoursText}
+                          onChange={handleDailyHoursTextChange}
+                          placeholder="8"
+                          className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                         />
                       </div>
                     </div>
@@ -377,19 +436,12 @@ export const OnboardingFlow: React.FC = () => {
                       <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                         Haftalık toplam normal saat
                       </label>
-                      <input
-                        type="number"
-                        step="0.5"
-                        min={1}
-                        max={100}
-                        value={form.weeklyWorkHours}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            weeklyWorkHours: Math.max(1, Number(e.target.value) || 40),
-                          })
-                        }
-                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                      <NumericInput
+                        allowDecimal
+                        value={weeklyWorkHoursText}
+                        onChange={setWeeklyWorkHoursText}
+                        placeholder="40"
+                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                       />
                     </div>
 
@@ -426,18 +478,11 @@ export const OnboardingFlow: React.FC = () => {
                       <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                         Günlük mola süresi (dakika)
                       </label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={240}
-                        value={form.breakMinutes}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            breakMinutes: Math.max(0, Number(e.target.value) || 0),
-                          })
-                        }
-                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+                      <NumericInput
+                        value={breakMinutesText}
+                        onChange={setBreakMinutesText}
+                        placeholder="60"
+                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                       />
                     </div>
                   </div>
@@ -461,31 +506,28 @@ export const OnboardingFlow: React.FC = () => {
                         Fazla mesai saatlik ücret çarpanı
                       </label>
                       <div className="flex gap-2">
-                        {[1.25, 1.5, 2.0].map((val) => (
-                          <button
-                            key={val}
-                            type="button"
-                            onClick={() => setForm({ ...form, overtimeMultiplier: val })}
-                            className={`flex-1 min-h-[44px] rounded-xl font-mono text-sm font-medium transition-colors ${
-                              form.overtimeMultiplier === val
-                                ? 'bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211]'
-                                : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
-                            }`}
-                          >
-                            {val}x
-                          </button>
-                        ))}
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="1"
-                          value={form.overtimeMultiplier}
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              overtimeMultiplier: Math.max(1, Number(e.target.value) || 1.5),
-                            })
-                          }
+                        {[1.25, 1.5, 2.0].map((val) => {
+                          const parsedOt = parseLocaleNumber(overtimeMultiplierText);
+                          return (
+                            <button
+                              key={val}
+                              type="button"
+                              onClick={() => setOvertimeMultiplierText(String(val))}
+                              className={`flex-1 min-h-[44px] rounded-xl font-mono text-sm font-medium transition-colors ${
+                                parsedOt === val
+                                  ? 'bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211]'
+                                  : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
+                              }`}
+                            >
+                              {val}x
+                            </button>
+                          );
+                        })}
+                        <NumericInput
+                          allowDecimal
+                          value={overtimeMultiplierText}
+                          onChange={setOvertimeMultiplierText}
+                          placeholder="1.5"
                           className="w-20 min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 text-center font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                         />
                       </div>
@@ -496,31 +538,28 @@ export const OnboardingFlow: React.FC = () => {
                         Hafta sonu & resmî tatil çarpanı
                       </label>
                       <div className="flex gap-2">
-                        {[1.5, 2.0, 2.5].map((val) => (
-                          <button
-                            key={val}
-                            type="button"
-                            onClick={() => setForm({ ...form, weekendMultiplier: val })}
-                            className={`flex-1 min-h-[44px] rounded-xl font-mono text-sm font-medium transition-colors ${
-                              form.weekendMultiplier === val
-                                ? 'bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211]'
-                                : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
-                            }`}
-                          >
-                            {val}x
-                          </button>
-                        ))}
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="1"
-                          value={form.weekendMultiplier}
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              weekendMultiplier: Math.max(1, Number(e.target.value) || 2.0),
-                            })
-                          }
+                        {[1.5, 2.0, 2.5].map((val) => {
+                          const parsedWk = parseLocaleNumber(weekendMultiplierText);
+                          return (
+                            <button
+                              key={val}
+                              type="button"
+                              onClick={() => setWeekendMultiplierText(String(val))}
+                              className={`flex-1 min-h-[44px] rounded-xl font-mono text-sm font-medium transition-colors ${
+                                parsedWk === val
+                                  ? 'bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211]'
+                                  : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
+                              }`}
+                            >
+                              {val}x
+                            </button>
+                          );
+                        })}
+                        <NumericInput
+                          allowDecimal
+                          value={weekendMultiplierText}
+                          onChange={setWeekendMultiplierText}
+                          placeholder="2.0"
                           className="w-20 min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 text-center font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                         />
                       </div>
@@ -542,7 +581,7 @@ export const OnboardingFlow: React.FC = () => {
                               : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                           }`}
                         >
-                          Günlük hedef ({form.dailyWorkHours} sa)
+                          Günlük hedef ({parseLocaleNumber(dailyWorkHoursText) ?? form.dailyWorkHours} sa)
                         </button>
                         <button
                           type="button"
@@ -555,7 +594,7 @@ export const OnboardingFlow: React.FC = () => {
                               : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                           }`}
                         >
-                          Haftalık hedef ({form.weeklyWorkHours} sa)
+                          Haftalık hedef ({parseLocaleNumber(weeklyWorkHoursText) ?? form.weeklyWorkHours} sa)
                         </button>
                       </div>
                     </div>

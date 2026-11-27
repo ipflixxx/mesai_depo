@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Calendar, ChevronDown, Minus, Plus, Trash2, X } from 'lucide-react';
 import { useMesai } from '../context/MesaiContext';
 import { WorkEntryInput, WorkType } from '../types/mesai';
+import { NumericInput, parseLocaleNumber } from './NumericInput';
 import {
   WORK_TYPE_LABELS,
   calculateEntryPreview,
@@ -43,7 +44,7 @@ export const WorkEntryModal: React.FC = () => {
   const [useTimeRange, setUseTimeRange] = useState(false);
   const [startTime, setStartTime] = useState('18:00');
   const [endTime, setEndTime] = useState('20:00');
-  const [breakMinutes, setBreakMinutes] = useState(0);
+  const [breakMinutesInput, setBreakMinutesInput] = useState('0');
   const [showNotes, setShowNotes] = useState(false);
   const [notes, setNotes] = useState('');
 
@@ -86,7 +87,7 @@ export const WorkEntryModal: React.FC = () => {
       );
       setStartTime(editingEntry.startTime);
       setEndTime(editingEntry.endTime);
-      setBreakMinutes(editingEntry.breakMinutes);
+      setBreakMinutesInput(String(editingEntry.breakMinutes));
       setUseTimeRange(editingEntry.breakMinutes > 0);
       setNotes(editingEntry.notes);
       setShowNotes(Boolean(editingEntry.notes));
@@ -111,7 +112,7 @@ export const WorkEntryModal: React.FC = () => {
       setEndTime(
         minutesToTimeString(timeToMinutes(autoStart) + Math.round(defaultHours * 60))
       );
-      setBreakMinutes(0);
+      setBreakMinutesInput('0');
       setUseTimeRange(false);
       setNotes('');
       setShowNotes(false);
@@ -122,12 +123,13 @@ export const WorkEntryModal: React.FC = () => {
 
   const effectiveEndTime = useMemo(() => {
     if (useTimeRange) return endTime;
-    const hrs = Number(hoursInput.replace(',', '.'));
-    if (!Number.isFinite(hrs) || hrs <= 0) return startTime;
+    const hrs = parseLocaleNumber(hoursInput);
+    if (hrs === null || hrs <= 0) return startTime;
     return minutesToTimeString(timeToMinutes(startTime) + Math.round(hrs * 60));
   }, [useTimeRange, hoursInput, startTime, endTime]);
 
-  const effectiveBreak = useTimeRange && !isLeave ? Number(breakMinutes) || 0 : 0;
+  const effectiveBreak =
+    useTimeRange && !isLeave ? Math.max(0, Math.round(parseLocaleNumber(breakMinutesInput) ?? 0)) : 0;
 
   const inputPayload: WorkEntryInput = useMemo(
     () => ({
@@ -180,7 +182,7 @@ export const WorkEntryModal: React.FC = () => {
       if (!editingEntry) setHoursInput(String(settings.dailyWorkHours || 8));
     } else {
       setWorkType('paid_leave');
-      setBreakMinutes(0);
+      setBreakMinutesInput('0');
     }
   };
 
@@ -193,10 +195,7 @@ export const WorkEntryModal: React.FC = () => {
       ? 'normal'
       : 'overtime';
 
-  const parsedHoursValue = (() => {
-    const num = Number(hoursInput.replace(',', '.'));
-    return Number.isFinite(num) ? num : 0;
-  })();
+  const parsedHoursValue = parseLocaleNumber(hoursInput) ?? 0;
 
   const adjustHours = (delta: number) => {
     const base = parsedHoursValue > 0 ? parsedHoursValue : 0;
@@ -211,8 +210,8 @@ export const WorkEntryModal: React.FC = () => {
       return;
     }
     if (!useTimeRange && !isLeave) {
-      const parsed = Number(hoursInput.replace(',', '.'));
-      if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 24) {
+      const parsed = parseLocaleNumber(hoursInput);
+      if (parsed === null || parsed <= 0 || parsed > 24) {
         setSubmitError('Lütfen 0,5 ile 24 saat arasında bir süre girin.');
         return;
       }
@@ -395,14 +394,15 @@ export const WorkEntryModal: React.FC = () => {
                     </button>
 
                     <div className="flex-1 flex items-center justify-center gap-1.5 px-2">
-                      <input
-                        type="text"
-                        inputMode="decimal"
+                      <NumericInput
+                        allowDecimal
                         aria-label="Mesai saati"
                         value={hoursInput}
-                        onChange={(e) =>
-                          setHoursInput(e.target.value.replace(/[^0-9.,]/g, ''))
-                        }
+                        onChange={(val) => {
+                          setSubmitError(null);
+                          setHoursInput(val);
+                        }}
+                        placeholder="0"
                         className="w-16 bg-transparent text-center font-mono text-xl font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums focus:outline-none"
                       />
                       <span className="text-xs font-medium text-[#77827B] dark:text-[#929B95] select-none">
@@ -423,7 +423,7 @@ export const WorkEntryModal: React.FC = () => {
 
                   <div className="grid grid-cols-4 gap-2">
                     {QUICK_HOURS.map((h) => {
-                      const active = Number(hoursInput) === h;
+                      const active = parseLocaleNumber(hoursInput) === h;
                       return (
                         <button
                           key={h}
@@ -483,16 +483,11 @@ export const WorkEntryModal: React.FC = () => {
                       <label className="block text-[11px] text-[#77827B] dark:text-[#929B95] mb-1">
                         Mola (dk)
                       </label>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={480}
-                        value={breakMinutes}
-                        onChange={(e) =>
-                          setBreakMinutes(Math.max(0, Number(e.target.value) || 0))
-                        }
-                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      <NumericInput
+                        value={breakMinutesInput}
+                        onChange={setBreakMinutesInput}
+                        placeholder="0"
+                        className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
                       />
                     </div>
                   </div>

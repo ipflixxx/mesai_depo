@@ -3,15 +3,17 @@ import { Plus } from 'lucide-react';
 import { MonthlyCalendarGrid } from '../components/MonthlyCalendarGrid';
 import { useMesai } from '../context/MesaiContext';
 import {
+  WORK_TYPE_LABELS,
   formatCurrency,
   formatDuration,
   formatMonthYear,
+  formatTurkishDate,
   getTodayDateString,
   summarizeEntries,
 } from '../utils/calculations';
 
 export const CalendarPage: React.FC = () => {
-  const { settings, entries, openNewEntryModal } = useMesai();
+  const { settings, entries, openNewEntryModal, openEditEntryModal } = useMesai();
 
   const todayStr = getTodayDateString();
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
@@ -22,7 +24,13 @@ export const CalendarPage: React.FC = () => {
   const monthTitle = formatMonthYear(viewYear, viewMonth);
 
   const monthEntries = useMemo(
-    () => entries.filter((e) => e.date.startsWith(monthPrefix)),
+    () =>
+      entries
+        .filter((e) => e.date.startsWith(monthPrefix))
+        .sort((a, b) => {
+          if (a.date !== b.date) return b.date.localeCompare(a.date);
+          return b.startTime.localeCompare(a.startTime);
+        }),
     [entries, monthPrefix]
   );
 
@@ -119,6 +127,7 @@ export const CalendarPage: React.FC = () => {
         entries={entries}
         onSelectDate={setSelectedDate}
         onSelectedDayClick={(d) => openNewEntryModal(d)}
+        onEditEntry={(entry) => openEditEntryModal(entry)}
         onPrevMonth={prevMonth}
         onNextMonth={nextMonth}
         onJumpToday={jumpToday}
@@ -193,6 +202,181 @@ export const CalendarPage: React.FC = () => {
             {formatCurrency(allTimeSummary.totalExtraEarnings, settings.currency)}
           </span>
         </div>
+      </section>
+
+      {/* 3. Aylık Günlük Kayıtlar Tablosu (Mobilde Kart, Masaüstünde Tablo) */}
+      <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-6">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
+            {monthTitle} Kayıtları
+          </h2>
+          <span className="font-mono text-xs text-[#77827B] dark:text-[#929B95] tabular-nums">
+            {monthEntries.length} kayıt
+          </span>
+        </div>
+
+        {monthEntries.length === 0 ? (
+          <p className="py-6 text-center text-xs text-[#77827B] dark:text-[#929B95]">
+            Bu ay için henüz mesai kaydı girilmemiş.
+          </p>
+        ) : (
+          <>
+            {/* Mobile stacked rows */}
+            <div className="sm:hidden divide-y divide-[#D7E0DA] dark:divide-white/[0.06]">
+              {monthEntries.map((entry) => {
+                const isLeave =
+                  entry.workType === 'paid_leave' || entry.workType === 'unpaid_leave';
+                const ratePct = isLeave
+                  ? null
+                  : entry.overtimeRatePercent ??
+                    (entry.workType === 'weekend' || entry.workType === 'holiday'
+                      ? settings.weekendMultiplier >= 2.0
+                        ? 100
+                        : 50
+                      : entry.overtimeDurationMinutes > 0 || entry.workType === 'overtime'
+                      ? settings.overtimeMultiplier >= 2.0
+                        ? 100
+                        : 50
+                      : null);
+                const dotColor = isLeave
+                  ? 'bg-[#2563EB] dark:bg-[#60A5FA]'
+                  : ratePct === 100
+                  ? 'bg-[#7C3AED] dark:bg-[#A78BFA]'
+                  : ratePct === 50
+                  ? 'bg-[#D97706] dark:bg-[#F59E0B]'
+                  : 'bg-[#159B61] dark:bg-[#39D98A]';
+
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => openEditEntryModal(entry)}
+                    className="w-full py-3 flex items-center justify-between gap-3 text-left"
+                  >
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
+                        <span className="text-[13px] font-semibold text-[#2A302D] dark:text-[#F5F3EE]">
+                          {formatTurkishDate(entry.date)}
+                        </span>
+                      </div>
+                      <p className="pl-4 text-xs text-[#77827B] dark:text-[#929B95] truncate">
+                        {WORK_TYPE_LABELS[entry.workType]}
+                        {ratePct ? ` · %${ratePct}` : ''}
+                        {entry.notes ? ` · ${entry.notes}` : ''}
+                      </p>
+                    </div>
+
+                    <div className="text-right shrink-0 space-y-0.5">
+                      <p
+                        className={`font-mono text-sm font-bold tabular-nums ${
+                          entry.estimatedEarnings < 0
+                            ? 'text-red-600 dark:text-red-400'
+                            : entry.estimatedEarnings > 0
+                            ? 'text-[#159B61] dark:text-[#39D98A]'
+                            : 'text-[#77827B] dark:text-[#929B95]'
+                        }`}
+                      >
+                        {entry.estimatedEarnings !== 0
+                          ? `${entry.estimatedEarnings > 0 ? '+' : ''}${formatCurrency(
+                              entry.estimatedEarnings,
+                              settings.currency
+                            )}`
+                          : '—'}
+                      </p>
+                      {!isLeave && (
+                        <p className="font-mono text-[11px] text-[#77827B] dark:text-[#929B95] tabular-nums">
+                          {formatDuration(entry.calculatedDurationMinutes)}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden sm:block">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-[#D7E0DA] dark:border-white/[0.08] text-[11px] font-semibold text-[#77827B] dark:text-[#929B95]">
+                    <th className="py-2.5 pr-3">Tarih</th>
+                    <th className="py-2.5 px-3">Tür</th>
+                    <th className="py-2.5 px-3 text-right">Süre</th>
+                    <th className="py-2.5 px-3 text-right">Kazanç</th>
+                    <th className="py-2.5 pl-3">Not</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#D7E0DA] dark:divide-white/[0.06] text-sm">
+                  {monthEntries.map((entry) => {
+                    const isLeave =
+                      entry.workType === 'paid_leave' || entry.workType === 'unpaid_leave';
+                    const ratePct = isLeave
+                      ? null
+                      : entry.overtimeRatePercent ??
+                        (entry.workType === 'weekend' || entry.workType === 'holiday'
+                          ? settings.weekendMultiplier >= 2.0
+                            ? 100
+                            : 50
+                          : entry.overtimeDurationMinutes > 0 || entry.workType === 'overtime'
+                          ? settings.overtimeMultiplier >= 2.0
+                            ? 100
+                            : 50
+                          : null);
+                    const dotColor = isLeave
+                      ? 'bg-[#2563EB] dark:bg-[#60A5FA]'
+                      : ratePct === 100
+                      ? 'bg-[#7C3AED] dark:bg-[#A78BFA]'
+                      : ratePct === 50
+                      ? 'bg-[#D97706] dark:bg-[#F59E0B]'
+                      : 'bg-[#159B61] dark:bg-[#39D98A]';
+
+                    return (
+                      <tr
+                        key={entry.id}
+                        onClick={() => openEditEntryModal(entry)}
+                        className="cursor-pointer hover:bg-[#EEF2EF]/60 dark:hover:bg-[#222925]/60 transition-colors"
+                      >
+                        <td className="py-3 pr-3 font-medium text-[#2A302D] dark:text-[#F5F3EE] whitespace-nowrap">
+                          {formatTurkishDate(entry.date)}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-2 text-xs font-medium text-[#17221B] dark:text-[#F4F7F5]">
+                            <span className={`w-2 h-2 rounded-full ${dotColor}`} />
+                            {WORK_TYPE_LABELS[entry.workType]}
+                            {ratePct ? ` · %${ratePct}` : ''}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono text-xs text-[#77827B] dark:text-[#929B95] tabular-nums whitespace-nowrap">
+                          {isLeave ? '—' : formatDuration(entry.calculatedDurationMinutes)}
+                        </td>
+                        <td
+                          className={`py-3 px-3 text-right font-mono text-xs font-bold tabular-nums whitespace-nowrap ${
+                            entry.estimatedEarnings < 0
+                              ? 'text-red-600 dark:text-red-400'
+                              : entry.estimatedEarnings > 0
+                              ? 'text-[#159B61] dark:text-[#39D98A]'
+                              : 'text-[#77827B] dark:text-[#929B95]'
+                          }`}
+                        >
+                          {entry.estimatedEarnings !== 0
+                            ? `${entry.estimatedEarnings > 0 ? '+' : ''}${formatCurrency(
+                                entry.estimatedEarnings,
+                                settings.currency
+                              )}`
+                            : '—'}
+                        </td>
+                        <td className="py-3 pl-3 text-xs text-[#77827B] dark:text-[#929B95] max-w-[180px] truncate">
+                          {entry.notes || '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </section>
     </div>
   );

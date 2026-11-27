@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Briefcase, CalendarCheck, Clock, TrendingUp } from 'lucide-react';
+import { NumericInput, parseLocaleNumber } from '../components/NumericInput';
 import { useMesai } from '../context/MesaiContext';
 import { formatCurrency } from '../utils/calculations';
 
@@ -57,12 +58,12 @@ export const CalculatorsPage: React.FC = () => {
 
   // Zam Calculations
   const raiseResult = useMemo(() => {
-    const base = Math.max(0, Number(currentSalary) || 0);
+    const base = Math.max(0, parseLocaleNumber(currentSalary) ?? 0);
     const weeklyHrs = settings.weeklyWorkHours > 0 ? settings.weeklyWorkHours : 45;
     const monthlyHrs = (weeklyHrs * 52) / 12;
 
     if (raiseMode === 'percent') {
-      const pct = Number(raisePercent) || 0;
+      const pct = parseLocaleNumber(raisePercent) ?? 0;
       const newSalary = base * (1 + pct / 100);
       const diff = newSalary - base;
       return {
@@ -73,7 +74,7 @@ export const CalculatorsPage: React.FC = () => {
         newHourly: monthlyHrs > 0 ? newSalary / monthlyHrs : 0,
       };
     } else {
-      const target = Math.max(0, Number(targetSalary) || 0);
+      const target = Math.max(0, parseLocaleNumber(targetSalary) ?? 0);
       const diff = target - base;
       const pct = base > 0 ? (diff / base) * 100 : 0;
       return {
@@ -99,8 +100,8 @@ export const CalculatorsPage: React.FC = () => {
     const months = Math.floor(remDaysAfterYears / 30);
     const days = remDaysAfterYears % 30;
 
-    const baseGross = Math.max(0, Number(grossSalary) || 0);
-    const benefits = Math.max(0, Number(monthlyBenefits) || 0);
+    const baseGross = Math.max(0, parseLocaleNumber(grossSalary) ?? 0);
+    const benefits = Math.max(0, parseLocaleNumber(monthlyBenefits) ?? 0);
     const dressedGross = baseGross + benefits;
 
     // Kıdem tazminatı yalnızca 1 yıl (365 gün) ve üzeri çalışmalarda doğar
@@ -139,9 +140,9 @@ export const CalculatorsPage: React.FC = () => {
 
   // Mesai Simülatörü Calculations
   const overtimeSimResult = useMemo(() => {
-    const sal = Math.max(0, Number(simSalary) || 0);
-    const wk = Math.max(1, Number(simWeeklyHours) || 45);
-    const hrs = Math.max(0, Number(simHours) || 0);
+    const sal = Math.max(0, parseLocaleNumber(simSalary) ?? 0);
+    const wk = Math.max(1, parseLocaleNumber(simWeeklyHours) ?? 45);
+    const hrs = Math.max(0, parseLocaleNumber(simHours) ?? 0);
     const monthlyHours = (wk * 52) / 12;
     const hourly = monthlyHours > 0 ? sal / monthlyHours : 0;
     const mult = simRate === 100 ? 2.0 : 1.5;
@@ -151,15 +152,15 @@ export const CalculatorsPage: React.FC = () => {
 
   // Yıllık İzin Calculations
   const leaveResult = useMemo(() => {
-    const yrs = Math.max(0, Number(tenureYears) || 0);
+    const yrs = Math.max(0, parseLocaleNumber(tenureYears) ?? 0);
     let entitledDays = 0;
     if (yrs >= 15) entitledDays = 26;
     else if (yrs > 5) entitledDays = 20;
     else if (yrs >= 1) entitledDays = 14;
 
-    const sal = Math.max(0, Number(leaveSalary) || 0);
+    const sal = Math.max(0, parseLocaleNumber(leaveSalary) ?? 0);
     const dailyPay = sal / 30;
-    const unused = Math.max(0, Number(unusedLeaveDays) || 0);
+    const unused = Math.max(0, parseLocaleNumber(unusedLeaveDays) ?? 0);
     const payout = dailyPay * unused;
     return { entitledDays, dailyPay, payout };
   }, [tenureYears, unusedLeaveDays, leaveSalary]);
@@ -249,12 +250,11 @@ export const CalculatorsPage: React.FC = () => {
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                 Mevcut aylık maaş ({settings.currency})
               </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
+              <NumericInput
+                allowDecimal
                 value={currentSalary}
-                onChange={(e) => setCurrentSalary(e.target.value)}
+                onChange={setCurrentSalary}
+                placeholder="35000"
                 className="w-full min-h-[46px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
               />
             </div>
@@ -264,12 +264,11 @@ export const CalculatorsPage: React.FC = () => {
                 <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                   Zam oranı (%)
                 </label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.5"
+                <NumericInput
+                  allowDecimal
                   value={raisePercent}
-                  onChange={(e) => setRaisePercent(e.target.value)}
+                  onChange={setRaisePercent}
+                  placeholder="30"
                   className="w-full min-h-[46px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                 />
               </div>
@@ -278,12 +277,11 @@ export const CalculatorsPage: React.FC = () => {
                 <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                   Yeni / hedef maaş ({settings.currency})
                 </label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
+                <NumericInput
+                  allowDecimal
                   value={targetSalary}
-                  onChange={(e) => setTargetSalary(e.target.value)}
+                  onChange={setTargetSalary}
+                  placeholder="45500"
                   className="w-full min-h-[46px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                 />
               </div>
@@ -394,12 +392,11 @@ export const CalculatorsPage: React.FC = () => {
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                 Aylık brüt maaş ({settings.currency})
               </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
+              <NumericInput
+                allowDecimal
                 value={grossSalary}
-                onChange={(e) => setGrossSalary(e.target.value)}
+                onChange={setGrossSalary}
+                placeholder="40000"
                 className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
@@ -407,12 +404,11 @@ export const CalculatorsPage: React.FC = () => {
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                 Aylık yan haklar (yol, yemek, prim)
               </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
+              <NumericInput
+                allowDecimal
                 value={monthlyBenefits}
-                onChange={(e) => setMonthlyBenefits(e.target.value)}
+                onChange={setMonthlyBenefits}
+                placeholder="0"
                 className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
@@ -504,12 +500,11 @@ export const CalculatorsPage: React.FC = () => {
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                 Aylık maaş ({settings.currency})
               </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
+              <NumericInput
+                allowDecimal
                 value={simSalary}
-                onChange={(e) => setSimSalary(e.target.value)}
+                onChange={setSimSalary}
+                placeholder="35000"
                 className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
@@ -517,12 +512,11 @@ export const CalculatorsPage: React.FC = () => {
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                 Haftalık normal saat
               </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                min="1"
+              <NumericInput
+                allowDecimal
                 value={simWeeklyHours}
-                onChange={(e) => setSimWeeklyHours(e.target.value)}
+                onChange={setSimWeeklyHours}
+                placeholder="40"
                 className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
@@ -530,13 +524,11 @@ export const CalculatorsPage: React.FC = () => {
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                 Fazla mesai (saat)
               </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.5"
-                min="0"
+              <NumericInput
+                allowDecimal
                 value={simHours}
-                onChange={(e) => setSimHours(e.target.value)}
+                onChange={setSimHours}
+                placeholder="4"
                 className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
@@ -603,13 +595,11 @@ export const CalculatorsPage: React.FC = () => {
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                 Çalışma yılı
               </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
-                step="1"
+              <NumericInput
+                allowDecimal
                 value={tenureYears}
-                onChange={(e) => setTenureYears(e.target.value)}
+                onChange={setTenureYears}
+                placeholder="3"
                 className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
@@ -617,12 +607,11 @@ export const CalculatorsPage: React.FC = () => {
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                 Kullanılmayan izin (gün)
               </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
+              <NumericInput
+                allowDecimal
                 value={unusedLeaveDays}
-                onChange={(e) => setUnusedLeaveDays(e.target.value)}
+                onChange={setUnusedLeaveDays}
+                placeholder="5"
                 className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>
@@ -630,12 +619,11 @@ export const CalculatorsPage: React.FC = () => {
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
                 Aylık maaş ({settings.currency})
               </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
+              <NumericInput
+                allowDecimal
                 value={leaveSalary}
-                onChange={(e) => setLeaveSalary(e.target.value)}
+                onChange={setLeaveSalary}
+                placeholder="35000"
                 className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5]"
               />
             </div>

@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { Moon, Settings as SettingsIcon, Sun } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MesaiWordmark } from '../components/MesaiWordmark';
 import { MonthlyCalendarGrid } from '../components/MonthlyCalendarGrid';
 import { useMesai } from '../context/MesaiContext';
+import { useResolvedDark } from '../hooks/useTheme';
 import {
   calculateHourlyRate,
   formatCurrency,
@@ -14,7 +15,9 @@ import {
 } from '../utils/calculations';
 
 export const DashboardPage: React.FC = () => {
-  const { settings, entries, openNewEntryModal } = useMesai();
+  const { settings, entries, openNewEntryModal, openEditEntryModal, updateSettings } =
+    useMesai();
+  const isDark = useResolvedDark(settings.themeMode);
 
   const todayStr = getTodayDateString();
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
@@ -34,6 +37,10 @@ export const DashboardPage: React.FC = () => {
   );
 
   const monthSummary = useMemo(() => summarizeEntries(monthEntries), [monthEntries]);
+
+  const handleToggleTheme = () => {
+    void updateSettings({ themeMode: isDark ? 'light' : 'dark' });
+  };
 
   const handlePrevMonth = () => {
     if (viewMonth === 0) {
@@ -72,29 +79,43 @@ export const DashboardPage: React.FC = () => {
   const hourlyRate = calculateHourlyRate(settings);
 
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Üst Karşılama Alanı */}
-      <header className="flex items-center justify-between gap-4">
+      <header className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="mb-1.5 flex items-center gap-2.5">
+          <div className="mb-1 flex items-center gap-2">
             <MesaiWordmark size="xs" className="shrink-0" />
             <span className="h-3 w-px bg-[#CBD5CF] dark:bg-white/[0.12] shrink-0" />
             <p className="text-xs font-medium text-[#77827B] dark:text-[#929B95] truncate">
               {monthTitle}
             </p>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-[#17221B] dark:text-[#F4F7F5] tracking-tight truncate">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#2A302D] dark:text-[#F5F3EE] tracking-tight truncate">
             Merhaba{settings.userName ? `, ${settings.userName}` : ''}
           </h1>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleToggleTheme}
+            aria-label={isDark ? 'Açık temaya geç' : 'Karanlık temaya geç'}
+            title={isDark ? 'Açık tema' : 'Karanlık tema'}
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] text-[#2A302D] dark:text-[#F5F3EE] hover:bg-[#EEF2EF] dark:hover:bg-[#222925] active:scale-95 transition-all"
+          >
+            {isDark ? (
+              <Sun className="w-[18px] h-[18px]" />
+            ) : (
+              <Moon className="w-[18px] h-[18px]" />
+            )}
+          </button>
+
           <Link
             to="/ayarlar"
             aria-label="Ayarlar"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] text-[#17221B] dark:text-[#F4F7F5] hover:bg-[#EEF2EF] dark:hover:bg-[#222925] transition-colors"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] text-[#2A302D] dark:text-[#F5F3EE] hover:bg-[#EEF2EF] dark:hover:bg-[#222925] transition-colors"
           >
-            <SettingsIcon className="w-5 h-5" />
+            <SettingsIcon className="w-[18px] h-[18px]" />
           </Link>
         </div>
       </header>
@@ -107,115 +128,79 @@ export const DashboardPage: React.FC = () => {
         entries={entries}
         onSelectDate={setSelectedDate}
         onSelectedDayClick={(dateStr) => openNewEntryModal(dateStr)}
+        onEditEntry={(entry) => openEditEntryModal(entry)}
         onPrevMonth={handlePrevMonth}
         onNextMonth={handleNextMonth}
         onJumpToday={handleJumpToday}
         showHoursInCells={true}
+        currency={settings.currency}
         overtimeMultiplier={settings.overtimeMultiplier}
         weekendMultiplier={settings.weekendMultiplier}
       />
 
-      {/* 2. Bu Ayki Toplam Kazanç Kartı (Hemen Tablonun Altında) */}
-      <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-7">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-medium text-[#77827B] dark:text-[#929B95]">
-            {isCurrentMonth ? 'Bu Ayki Toplam Kazancım' : `${monthTitle} Kazancı`}
-          </h2>
-          <span className="text-xs text-[#77827B] dark:text-[#929B95]">
-            {settings.salaryType === 'gross' ? 'Brüt' : 'Net'}
-          </span>
-        </div>
-
-        <div className="mt-2.5 font-display font-extrabold text-4xl sm:text-[2.75rem] leading-none tracking-tight text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-          {formatCurrency(estimatedMonthlyTotal, settings.currency)}
-        </div>
-
-        <p className="mt-2 text-xs text-[#77827B] dark:text-[#929B95]">
-          Tahmini toplam kazanç
-          {settings.salaryType === 'gross' && ' · Brüt tutar üzerinden (kesintiler hariç)'}
-        </p>
-
-        {/* Saatlik Ücretlerim */}
-        <div className="mt-5 pt-4 border-t border-[#D7E0DA] dark:border-white/[0.06]">
-          <p className="text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-2.5">
-            Saatlik Ücretlerim
-          </p>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Normal (1x)</p>
-              <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums truncate">
-                {formatCurrency(hourlyRate, settings.currency, 2)}
-              </p>
-            </div>
-            <div>
-              <p className="text-[11px] text-[#D97706] dark:text-[#F59E0B] font-medium">
-                %50 Mesai (1.5x)
-              </p>
-              <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#D97706] dark:text-[#F59E0B] tabular-nums truncate">
-                {formatCurrency(hourlyRate * 1.5, settings.currency, 2)}
-              </p>
-            </div>
-            <div>
-              <p className="text-[11px] text-[#7C3AED] dark:text-[#A78BFA] font-medium">
-                %100 Mesai (2x)
-              </p>
-              <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#7C3AED] dark:text-[#A78BFA] tabular-nums truncate">
-                {formatCurrency(hourlyRate * 2, settings.currency, 2)}
-              </p>
+      {/* 2. Bu Ayki Toplam Kazanç (Minimal & Premium) */}
+      <section className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] sm:text-xs font-medium text-[#77827B] dark:text-[#929B95] truncate">
+              {isCurrentMonth ? 'Bu Ayki Toplam Kazancım' : `${monthTitle} Kazancı`}
+              <span aria-hidden="true"> · </span>
+              <span>{settings.salaryType === 'gross' ? 'Brüt' : 'Net'}</span>
+            </p>
+            <div className="mt-1 font-display font-extrabold text-[1.85rem] sm:text-[2.25rem] leading-none tracking-tight text-[#2A302D] dark:text-[#F5F3EE] tabular-nums">
+              {formatCurrency(estimatedMonthlyTotal, settings.currency)}
             </div>
           </div>
-        </div>
 
-        <div className="mt-4 pt-4 border-t border-[#D7E0DA] dark:border-white/[0.06] grid grid-cols-3 gap-3">
-          <div>
-            <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Sabit maaş</p>
-            <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-              {formatCurrency(settings.monthlySalary, settings.currency)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Fazla mesai</p>
-            <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#D97706] dark:text-[#F59E0B] tabular-nums">
-              +{formatCurrency(monthSummary.overtimeEarnings, settings.currency)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Hafta sonu & tatil</p>
-            <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#159B61] dark:text-[#39D98A] tabular-nums">
-              +{formatCurrency(monthSummary.weekendAndHolidayEarnings, settings.currency)}
+          <div className="text-right shrink-0 space-y-0.5">
+            {monthSummary.totalExtraEarnings !== 0 ? (
+              <p className="font-mono text-xs sm:text-sm font-semibold text-[#159B61] dark:text-[#39D98A] tabular-nums">
+                {monthSummary.totalExtraEarnings > 0 ? '+' : ''}
+                {formatCurrency(monthSummary.totalExtraEarnings, settings.currency)} ek
+              </p>
+            ) : (
+              <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">
+                Sabit maaş
+              </p>
+            )}
+            <p className="font-mono text-[11px] text-[#77827B] dark:text-[#929B95] tabular-nums">
+              {monthSummary.overtimeMinutes > 0
+                ? `${formatDuration(monthSummary.overtimeMinutes)} mesai`
+                : formatCurrency(settings.monthlySalary, settings.currency)}
             </p>
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-[#D7E0DA] dark:border-white/[0.06] grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <div>
-            <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Toplam çalışma</p>
-            <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-              {formatDuration(monthSummary.totalMinutes)}
+        {/* Saatlik Ücretlerim (Kompakt Tek Satır) */}
+        <div className="mt-3.5 pt-3 border-t border-[#D7E0DA] dark:border-white/[0.06] grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] text-[#77827B] dark:text-[#929B95] truncate">
+              Normal (1x)
+            </p>
+            <p className="mt-0.5 font-mono text-xs sm:text-sm font-semibold text-[#2A302D] dark:text-[#F5F3EE] tabular-nums truncate">
+              {formatCurrency(hourlyRate, settings.currency, 2)}
             </p>
           </div>
-          <div>
-            <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Fazla mesai saati</p>
-            <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#D97706] dark:text-[#F59E0B] tabular-nums">
-              {formatDuration(monthSummary.overtimeMinutes)}
+          <div className="min-w-0">
+            <p className="text-[11px] text-[#D97706] dark:text-[#F59E0B] font-medium truncate">
+              %50 (1.5x)
+            </p>
+            <p className="mt-0.5 font-mono text-xs sm:text-sm font-semibold text-[#D97706] dark:text-[#F59E0B] tabular-nums truncate">
+              {formatCurrency(hourlyRate * 1.5, settings.currency, 2)}
             </p>
           </div>
-          <div>
-            <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Çalışılan gün</p>
-            <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-              {monthSummary.workedDaysCount} gün
+          <div className="min-w-0">
+            <p className="text-[11px] text-[#7C3AED] dark:text-[#A78BFA] font-medium truncate">
+              %100 (2x)
             </p>
-          </div>
-          <div>
-            <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Ortalama günlük</p>
-            <p className="mt-1 font-mono text-sm sm:text-base font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-              {formatDuration(monthSummary.averageDailyMinutes)}
+            <p className="mt-0.5 font-mono text-xs sm:text-sm font-semibold text-[#7C3AED] dark:text-[#A78BFA] tabular-nums truncate">
+              {formatCurrency(hourlyRate * 2, settings.currency, 2)}
             </p>
           </div>
         </div>
       </section>
 
-      {/* 4. Son Kazanç Özeti */}
+      {/* 3. Son Kazanç Özeti */}
       <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3 mb-4">
           <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">

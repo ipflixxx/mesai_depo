@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts';
 import { useMesai } from '../context/MesaiContext';
+import { useResolvedDark } from '../hooks/useTheme';
 import {
   formatCurrency,
   formatDuration,
@@ -111,8 +112,7 @@ export const StatsPage: React.FC = () => {
       }));
   }, [realizedEntries, currentYear, settings.monthlySalary]);
 
-  const isDark =
-    typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+  const isDark = useResolvedDark(settings.themeMode);
   const accentColor = isDark ? '#39D98A' : '#159B61';
   const mutedBarColor = isDark ? '#35413A' : '#CBD5CE';
   const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(23,34,27,0.09)';
