@@ -1,6 +1,8 @@
 package com.mesai.app;
 
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
@@ -162,6 +164,11 @@ public class MesaiUpdaterPlugin extends Plugin {
 
             String safeVersion = versionName.replaceAll("[^a-zA-Z0-9._-]", "_");
             File targetFile = new File(updatesDir, "mesai-" + safeVersion + ".apk");
+            File partFile = new File(updatesDir, "mesai-" + safeVersion + ".apk.part");
+            if (partFile.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                partFile.delete();
+            }
             if (targetFile.exists()) {
                 //noinspection ResultOfMethodCallIgnored
                 targetFile.delete();
@@ -182,6 +189,7 @@ public class MesaiUpdaterPlugin extends Plugin {
                     int code = conn.getResponseCode();
                     if (code == HttpURLConnection.HTTP_MOVED_PERM
                             || code == HttpURLConnection.HTTP_MOVED_TEMP
+                            || code == HttpURLConnection.HTTP_SEE_OTHER
                             || code == 307
                             || code == 308) {
                         String location = conn.getHeaderField("Location");
@@ -206,7 +214,7 @@ public class MesaiUpdaterPlugin extends Plugin {
                 int lastReportedPct = -1;
 
                 try (InputStream in = conn.getInputStream();
-                     FileOutputStream out = new FileOutputStream(targetFile)) {
+                     FileOutputStream out = new FileOutputStream(partFile)) {
                     byte[] buffer = new byte[16384];
                     int read;
                     while ((read = in.read(buffer)) != -1) {
@@ -223,12 +231,37 @@ public class MesaiUpdaterPlugin extends Plugin {
                     out.flush();
                 }
 
+                if (downloadedBytes <= 0) {
+                    throw new IllegalStateException("Downloaded APK is empty.");
+                }
+
                 emitProgress("verifying", 100, downloadedBytes, totalBytes);
-                String actualSha = computeSha256(targetFile);
+                String actualSha = computeSha256(partFile);
                 if (!normalizedExpectedSha.equals(actualSha)) {
                     //noinspection ResultOfMethodCallIgnored
-                    targetFile.delete();
+                    partFile.delete();
                     throw new SecurityException("APK SHA-256 verification failed. File discarded.");
+                }
+
+                if (!partFile.renameTo(targetFile)) {
+                    throw new IllegalStateException("Failed to finalize downloaded APK file.");
+                }
+
+                PackageManager pm = getContext().getPackageManager();
+                PackageInfo archiveInfo = pm.getPackageArchiveInfo(targetFile.getAbsolutePath(), 0);
+                if (archiveInfo == null || archiveInfo.packageName == null) {
+                    throw new IllegalStateException("Downloaded APK package archive could not be parsed.");
+                }
+                if (!BuildConfig.APPLICATION_ID.equals(archiveInfo.packageName)) {
+                    throw new SecurityException("APK package ID mismatch: " + archiveInfo.packageName);
+                }
+                long archiveVersionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                        ? archiveInfo.getLongVersionCode()
+                        : (long) archiveInfo.versionCode;
+                if (archiveVersionCode < (long) BuildConfig.VERSION_CODE) {
+                    throw new IllegalStateException(
+                        "Downloaded APK versionCode (" + archiveVersionCode + ") is lower than installed version (" + BuildConfig.VERSION_CODE + ")."
+                    );
                 }
 
                 emitProgress("installing", 100, downloadedBytes, totalBytes);
@@ -240,13 +273,22 @@ public class MesaiUpdaterPlugin extends Plugin {
 
                 Intent installIntent = new Intent(Intent.ACTION_VIEW);
                 installIntent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-                installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-                getContext().startActivity(installIntent);
+                installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                if (getActivity() != null) {
+                    getActivity().startActivity(installIntent);
+                } else {
+                    installIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    getContext().startActivity(installIntent);
+                }
 
                 JSObject ret = new JSObject();
                 ret.put("status", "installer_launched");
                 call.resolve(ret);
             } catch (Exception e) {
+                if (partFile.exists()) {
+                    //noinspection ResultOfMethodCallIgnored
+                    partFile.delete();
+                }
                 if (targetFile.exists()) {
                     //noinspection ResultOfMethodCallIgnored
                     targetFile.delete();

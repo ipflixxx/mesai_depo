@@ -8,9 +8,9 @@ on:
         required: true
         type: string
       version_name:
-        description: 'Yayınlanacak sürüm (örn: 1.0.3; boş bırakılırsa artifact içinden okunur)'
+        description: 'Yayınlanacak sürüm (opsiyonel doğrulama; boş bırakılırsa APK içinden okunur)'
         required: false
-        default: '1.0.3'
+        default: ''
         type: string
       version_code:
         description: 'Android versionCode (boş bırakılırsa latest.json veya sürümden otomatik hesaplanır)'
@@ -171,6 +171,145 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
+            const zlib = require("zlib");
+
+            function extractApkManifestInfo(apkFilePath) {
+              const zipBuf = fs.readFileSync(apkFilePath);
+              let eocdOffset = -1;
+              const minOffset = Math.max(0, zipBuf.length - 65557);
+              for (let i = zipBuf.length - 22; i >= minOffset; i--) {
+                if (zipBuf.readUInt32LE(i) === 0x06054b50) {
+                  eocdOffset = i;
+                  break;
+                }
+              }
+              if (eocdOffset === -1) {
+                throw new Error("APK geçerli bir ZIP arşivi değil (EOCD bulunamadı).");
+              }
+
+              const cdSize = zipBuf.readUInt32LE(eocdOffset + 12);
+              const cdOffset = zipBuf.readUInt32LE(eocdOffset + 16);
+              const cdEnd = cdOffset + cdSize;
+              let manifestBuf = null;
+              let pos = cdOffset;
+
+              while (pos < cdEnd && pos + 46 <= zipBuf.length) {
+                if (zipBuf.readUInt32LE(pos) !== 0x02014b50) break;
+                const method = zipBuf.readUInt16LE(pos + 10);
+                const compSize = zipBuf.readUInt32LE(pos + 20);
+                const nameLen = zipBuf.readUInt16LE(pos + 28);
+                const extraLen = zipBuf.readUInt16LE(pos + 30);
+                const commentLen = zipBuf.readUInt16LE(pos + 32);
+                const lhOffset = zipBuf.readUInt32LE(pos + 42);
+                const entryName = zipBuf.toString("utf8", pos + 46, pos + 46 + nameLen);
+
+                if (entryName === "AndroidManifest.xml") {
+                  if (zipBuf.readUInt32LE(lhOffset) !== 0x04034b50) {
+                    throw new Error("APK AndroidManifest.xml yerel başlığı geçersiz.");
+                  }
+                  const lhNameLen = zipBuf.readUInt16LE(lhOffset + 26);
+                  const lhExtraLen = zipBuf.readUInt16LE(lhOffset + 28);
+                  const dataStart = lhOffset + 30 + lhNameLen + lhExtraLen;
+                  const compressed = zipBuf.subarray(dataStart, dataStart + compSize);
+                  if (method === 0) {
+                    manifestBuf = compressed;
+                  } else if (method === 8) {
+                    manifestBuf = zlib.inflateRawSync(compressed);
+                  } else {
+                    throw new Error(`Desteklenmeyen AndroidManifest.xml sıkıştırma yöntemi: ${method}`);
+                  }
+                  break;
+                }
+                pos += 46 + nameLen + extraLen + commentLen;
+              }
+
+              if (!manifestBuf) {
+                throw new Error("APK içinde AndroidManifest.xml bulunamadı.");
+              }
+              if (manifestBuf.readUInt16LE(0) !== 0x0003) {
+                throw new Error("AndroidManifest.xml geçerli bir Android binary XML dosyası değil.");
+              }
+
+              const strings = [];
+              let offset = manifestBuf.readUInt16LE(2);
+              let packageName = "";
+              let versionCode = null;
+              let versionCodeMajor = 0;
+              let versionName = "";
+
+              while (offset + 8 <= manifestBuf.length) {
+                const chunkType = manifestBuf.readUInt16LE(offset);
+                const headerSize = manifestBuf.readUInt16LE(offset + 2);
+                const chunkSize = manifestBuf.readUInt32LE(offset + 4);
+                if (chunkSize < 8 || offset + chunkSize > manifestBuf.length) break;
+
+                if (chunkType === 0x0001) {
+                  const stringCount = manifestBuf.readUInt32LE(offset + 8);
+                  const flags = manifestBuf.readUInt32LE(offset + 16);
+                  const stringsStart = manifestBuf.readUInt32LE(offset + 20);
+                  const isUtf8 = (flags & 0x00000100) !== 0;
+                  const offsetsBase = offset + headerSize;
+                  const dataBase = offset + stringsStart;
+
+                  for (let i = 0; i < stringCount; i++) {
+                    const strOff = manifestBuf.readUInt32LE(offsetsBase + i * 4);
+                    let p = dataBase + strOff;
+                    if (isUtf8) {
+                      const b1 = manifestBuf[p++];
+                      if (b1 & 0x80) p++;
+                      const lb = manifestBuf[p++];
+                      const byteLen = (lb & 0x80) ? (((lb & 0x7f) << 8) | manifestBuf[p++]) : lb;
+                      strings.push(manifestBuf.toString("utf8", p, p + byteLen));
+                    } else {
+                      const u1 = manifestBuf.readUInt16LE(p);
+                      p += 2;
+                      let charLen = u1;
+                      if (u1 & 0x8000) {
+                        charLen = ((u1 & 0x7fff) << 16) | manifestBuf.readUInt16LE(p);
+                        p += 2;
+                      }
+                      strings.push(manifestBuf.toString("utf16le", p, p + charLen * 2));
+                    }
+                  }
+                } else if (chunkType === 0x0102) {
+                  const nameIdx = manifestBuf.readInt32LE(offset + 20);
+                  if (strings[nameIdx] === "manifest") {
+                    const attrStart = manifestBuf.readUInt16LE(offset + 24);
+                    const attrSize = manifestBuf.readUInt16LE(offset + 26);
+                    const attrCount = manifestBuf.readUInt16LE(offset + 28);
+                    const attrsBase = offset + 16 + attrStart;
+
+                    for (let i = 0; i < attrCount; i++) {
+                      const aOff = attrsBase + i * attrSize;
+                      if (aOff + 20 > offset + chunkSize) break;
+                      const attrNameIdx = manifestBuf.readInt32LE(aOff + 4);
+                      const rawValIdx = manifestBuf.readInt32LE(aOff + 8);
+                      const valType = manifestBuf.readUInt8(aOff + 15);
+                      const valData = manifestBuf.readInt32LE(aOff + 16);
+                      const attrName = strings[attrNameIdx] || "";
+
+                      if (attrName === "package") {
+                        packageName = rawValIdx >= 0 ? (strings[rawValIdx] || "") : (valType === 0x03 ? (strings[valData] || "") : "");
+                      } else if (attrName === "versionCode") {
+                        versionCode = valData >>> 0;
+                      } else if (attrName === "versionCodeMajor") {
+                        versionCodeMajor = valData >>> 0;
+                      } else if (attrName === "versionName") {
+                        versionName = rawValIdx >= 0 ? (strings[rawValIdx] || "") : (valType === 0x03 && valData >= 0 ? (strings[valData] || "") : "");
+                      }
+                    }
+                    break;
+                  }
+                }
+                offset += chunkSize;
+              }
+
+              const fullVersionCode = versionCodeMajor > 0
+                ? Number((BigInt(versionCodeMajor) << 32n) | BigInt(versionCode || 0))
+                : Number(versionCode);
+
+              return { packageName, versionCode: fullVersionCode, versionName };
+            }
 
             const targetRepoSlug = process.env.TARGET_REPOSITORY.trim();
             const apkSrc = process.env.APK_SRC;
@@ -179,31 +318,52 @@ jobs:
             const existingApkShaPath = process.env.EXISTING_APK_SHA || "";
             const existingAabShaPath = process.env.EXISTING_AAB_SHA || "";
 
+            const apkManifest = extractApkManifestInfo(apkSrc);
+            console.log(`APK gerçek manifest bilgisi: package=${apkManifest.packageName}, versionName=${apkManifest.versionName}, versionCode=${apkManifest.versionCode}`);
+
+            if (apkManifest.packageName !== "com.mesai.app") {
+              throw new Error(`APK paket kimliği uyuşmuyor: beklenen=com.mesai.app, gerçek=${apkManifest.packageName}`);
+            }
+            if (!apkManifest.versionName || !Number.isInteger(apkManifest.versionCode) || apkManifest.versionCode <= 0) {
+              throw new Error(`APK içinden geçerli versionName/versionCode okunamadı: ${JSON.stringify(apkManifest)}`);
+            }
+
             let existingManifest = null;
             if (existingManifestPath && fs.existsSync(existingManifestPath)) {
               existingManifest = JSON.parse(fs.readFileSync(existingManifestPath, "utf8"));
             }
 
-            let versionName = (process.env.INPUT_VERSION_NAME || "").trim();
-            if (!versionName && existingManifest && existingManifest.versionName) {
-              versionName = String(existingManifest.versionName).trim();
-            }
-            if (!versionName) {
-              const apkBase = path.basename(apkSrc);
-              const match = apkBase.match(/^mesai-v([0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9._-]+)?)-direct-release\.apk$/);
-              if (match) versionName = match[1];
-            }
-            if (!versionName || !/^[0-9]+\.[0-9]+\.[0-9]+([-.][A-Za-z0-9._-]+)?$/.test(versionName)) {
-              throw new Error(`Geçerli bir version_name belirlenemedi ("${versionName}"). Lütfen workflow girişinden version_name belirtin.`);
+            const inputVersionName = (process.env.INPUT_VERSION_NAME || "").trim();
+            if (inputVersionName && inputVersionName !== apkManifest.versionName) {
+              throw new Error(
+                `Sürüm adı uyuşmazlığı! Girilen version_name="${inputVersionName}", ancak seçilen run artifactındaki derlenmiş APK gerçekte versionName="${apkManifest.versionName}" (versionCode=${apkManifest.versionCode}) içeriyor. Eski bir APK dosyasını yeniden adlandırmak Android kurulumunda "Paket geçersiz" hatasına yol açar; lütfen doğru sürümün run_id değerini seçin.`
+              );
             }
 
-            let versionCode = Number((process.env.INPUT_VERSION_CODE || "").trim());
-            if (!versionCode && existingManifest && existingManifest.versionCode) {
-              versionCode = Number(existingManifest.versionCode);
+            const inputVersionCodeRaw = (process.env.INPUT_VERSION_CODE || "").trim();
+            if (inputVersionCodeRaw && Number(inputVersionCodeRaw) !== apkManifest.versionCode) {
+              throw new Error(
+                `versionCode uyuşmazlığı! Girilen version_code=${inputVersionCodeRaw}, ancak derlenmiş APK gerçekte versionCode=${apkManifest.versionCode} içeriyor.`
+              );
             }
-            if (!versionCode || Number.isNaN(versionCode) || versionCode <= 0) {
-              const [maj, min, pat] = versionName.split("-")[0].split(".").map((n) => Number(n) || 0);
-              versionCode = maj * 10000 + min * 100 + pat;
+
+            if (existingManifest) {
+              if (existingManifest.versionName && String(existingManifest.versionName).trim() !== apkManifest.versionName) {
+                throw new Error(
+                  `Artifact latest.json versionName (${existingManifest.versionName}) ile APK versionName (${apkManifest.versionName}) uyuşmuyor.`
+                );
+              }
+              if (existingManifest.versionCode && Number(existingManifest.versionCode) !== apkManifest.versionCode) {
+                throw new Error(
+                  `Artifact latest.json versionCode (${existingManifest.versionCode}) ile APK versionCode (${apkManifest.versionCode}) uyuşmuyor.`
+                );
+              }
+            }
+
+            const versionName = apkManifest.versionName;
+            const versionCode = apkManifest.versionCode;
+            if (!/^[0-9]+\.[0-9]+\.[0-9]+([-.][A-Za-z0-9._-]+)?$/.test(versionName)) {
+              throw new Error(`APK içindeki versionName formatı geçersiz: "${versionName}".`);
             }
 
             const apkName = `mesai-v${versionName}-direct-release.apk`;
