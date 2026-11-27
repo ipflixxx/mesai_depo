@@ -1,11 +1,33 @@
 export type AdEnvironmentMode = 'test' | 'production';
 
 /**
+ * Master test-mode switch. Keep true until live AdMob ads are explicitly approved.
+ */
+export const ADMOB_IS_TEST_MODE = true;
+
+/**
  * Google Mobile Ads official Android test identifiers.
- * Used exclusively during development/test builds when real AdMob IDs are not configured.
  */
 export const GOOGLE_TEST_ADMOB_APP_ID = 'ca-app-pub-3940256099942544~3347511713';
 export const GOOGLE_TEST_INTERSTITIAL_AD_UNIT_ID = 'ca-app-pub-3940256099942544/1033173712';
+
+/**
+ * Production AdMob identifiers for MESAİ (com.mesai.app).
+ * Inactive while ADMOB_IS_TEST_MODE is true.
+ */
+export const PRODUCTION_ADMOB_APP_ID = 'ca-app-pub-6163614817121854~5113437207';
+export const PRODUCTION_INTERSTITIAL_AD_UNIT_ID = 'ca-app-pub-6163614817121854/2682714980';
+
+export const ADMOB_PROFILES = {
+  test: {
+    appId: GOOGLE_TEST_ADMOB_APP_ID,
+    interstitialAdUnitId: GOOGLE_TEST_INTERSTITIAL_AD_UNIT_ID,
+  },
+  production: {
+    appId: PRODUCTION_ADMOB_APP_ID,
+    interstitialAdUnitId: PRODUCTION_INTERSTITIAL_AD_UNIT_ID,
+  },
+} as const;
 
 export const INTERSTITIAL_AD_FREQUENCY = 2;
 export const AD_COUNTER_STORAGE_KEY = 'mesai_ad_state_v1';
@@ -18,6 +40,8 @@ export interface AdMobConfig {
   adsEnabled: boolean;
   appId: string;
   interstitialAdUnitId: string;
+  productionAppId: string;
+  productionInterstitialAdUnitId: string;
   interstitialFrequency: number;
 }
 
@@ -49,54 +73,63 @@ export function isValidProductionAdUnitId(value: string): boolean {
 }
 
 export function resolveAdMobConfig(
-  envOverride?: Record<string, string | undefined>
+  envOverride?: Record<string, string | undefined>,
+  forceTestMode: boolean = ADMOB_IS_TEST_MODE
 ): AdMobConfig {
   const env = envOverride ?? readEnv();
-  const requestedMode: AdEnvironmentMode =
-    String(env.VITE_ADMOB_ENV || '').trim().toLowerCase() === 'production'
-      ? 'production'
-      : 'test';
+  const envAppId = String(env.VITE_ADMOB_APP_ID || '').trim() || ADMOB_PROFILES.production.appId;
+  const envInterstitialId =
+    String(env.VITE_ADMOB_INTERSTITIAL_AD_UNIT_ID || '').trim() ||
+    ADMOB_PROFILES.production.interstitialAdUnitId;
 
-  const envAppId = String(env.VITE_ADMOB_APP_ID || '').trim();
-  const envInterstitialId = String(env.VITE_ADMOB_INTERSTITIAL_AD_UNIT_ID || '').trim();
   const isProductionConfigured =
     isValidProductionAdMobAppId(envAppId) && isValidProductionAdUnitId(envInterstitialId);
 
-  if (requestedMode === 'production') {
-    if (isProductionConfigured) {
-      return {
-        requestedMode,
-        effectiveMode: 'production',
-        isTestMode: false,
-        isProductionConfigured: true,
-        adsEnabled: true,
-        appId: envAppId,
-        interstitialAdUnitId: envInterstitialId,
-        interstitialFrequency: INTERSTITIAL_AD_FREQUENCY,
-      };
-    }
+  const requestedMode: AdEnvironmentMode =
+    !forceTestMode && String(env.VITE_ADMOB_ENV || '').trim().toLowerCase() === 'production'
+      ? 'production'
+      : 'test';
 
-    // Never fabricate or fall back to live ads if production IDs are missing/invalid.
+  if (forceTestMode || requestedMode === 'test') {
     return {
       requestedMode,
+      effectiveMode: 'test',
+      isTestMode: true,
+      isProductionConfigured,
+      adsEnabled: true,
+      appId: ADMOB_PROFILES.test.appId,
+      interstitialAdUnitId: ADMOB_PROFILES.test.interstitialAdUnitId,
+      productionAppId: isProductionConfigured ? envAppId : '',
+      productionInterstitialAdUnitId: isProductionConfigured ? envInterstitialId : '',
+      interstitialFrequency: INTERSTITIAL_AD_FREQUENCY,
+    };
+  }
+
+  if (isProductionConfigured) {
+    return {
+      requestedMode: 'production',
       effectiveMode: 'production',
       isTestMode: false,
-      isProductionConfigured: false,
-      adsEnabled: false,
-      appId: '',
-      interstitialAdUnitId: '',
+      isProductionConfigured: true,
+      adsEnabled: true,
+      appId: envAppId,
+      interstitialAdUnitId: envInterstitialId,
+      productionAppId: envAppId,
+      productionInterstitialAdUnitId: envInterstitialId,
       interstitialFrequency: INTERSTITIAL_AD_FREQUENCY,
     };
   }
 
   return {
-    requestedMode: 'test',
-    effectiveMode: 'test',
-    isTestMode: true,
+    requestedMode: 'production',
+    effectiveMode: 'production',
+    isTestMode: false,
     isProductionConfigured: false,
-    adsEnabled: true,
-    appId: GOOGLE_TEST_ADMOB_APP_ID,
-    interstitialAdUnitId: GOOGLE_TEST_INTERSTITIAL_AD_UNIT_ID,
+    adsEnabled: false,
+    appId: '',
+    interstitialAdUnitId: '',
+    productionAppId: '',
+    productionInterstitialAdUnitId: '',
     interstitialFrequency: INTERSTITIAL_AD_FREQUENCY,
   };
 }

@@ -3,18 +3,11 @@ apply plugin: 'com.android.application'
 def resolvedVersionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "10007").toInteger()
 def resolvedVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "1.0.7"
 
-def admobEnvRaw = (System.getenv("ADMOB_ENV") ?: "test").trim().toLowerCase()
-def admobAppIdEnv = (System.getenv("ADMOB_APP_ID") ?: "").trim()
-def admobInterstitialEnv = (System.getenv("ADMOB_INTERSTITIAL_AD_UNIT_ID") ?: "").trim()
-def hasRealAdmobIds = (
-    admobEnvRaw == "production" &&
-    admobAppIdEnv.startsWith("ca-app-pub-") &&
-    !admobAppIdEnv.contains("3940256099942544") &&
-    admobInterstitialEnv.startsWith("ca-app-pub-") &&
-    !admobInterstitialEnv.contains("3940256099942544")
-)
-def resolvedAdmobAppId = hasRealAdmobIds ? admobAppIdEnv : "ca-app-pub-3940256099942544~3347511713"
-def resolvedAdmobInterstitialId = hasRealAdmobIds ? admobInterstitialEnv : "ca-app-pub-3940256099942544/1033173712"
+def admobIsTestMode = true
+def productionAdmobAppId = (System.getenv("ADMOB_APP_ID") ?: "ca-app-pub-6163614817121854~5113437207").trim()
+def productionAdmobInterstitialId = (System.getenv("ADMOB_INTERSTITIAL_AD_UNIT_ID") ?: "ca-app-pub-6163614817121854/2682714980").trim()
+def testAdmobInterstitialId = "ca-app-pub-3940256099942544/1033173712"
+def resolvedAdmobInterstitialId = admobIsTestMode ? testAdmobInterstitialId : productionAdmobInterstitialId
 
 android {
     namespace = "com.mesai.app"
@@ -31,10 +24,11 @@ android {
         versionCode resolvedVersionCode
         versionName resolvedVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        manifestPlaceholders = [admobAppId: resolvedAdmobAppId]
-        buildConfigField "String", "ADMOB_ENV", "\"${hasRealAdmobIds ? 'production' : 'test'}\""
+        buildConfigField "String", "ADMOB_ENV", "\"${admobIsTestMode ? 'test' : 'production'}\""
         buildConfigField "String", "ADMOB_INTERSTITIAL_AD_UNIT_ID", "\"${resolvedAdmobInterstitialId}\""
-        buildConfigField "boolean", "ADMOB_IS_TEST_MODE", "${!hasRealAdmobIds}"
+        buildConfigField "String", "ADMOB_PRODUCTION_APP_ID", "\"${productionAdmobAppId}\""
+        buildConfigField "String", "ADMOB_PRODUCTION_INTERSTITIAL_AD_UNIT_ID", "\"${productionAdmobInterstitialId}\""
+        buildConfigField "boolean", "ADMOB_IS_TEST_MODE", "${admobIsTestMode}"
         aaptOptions {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }

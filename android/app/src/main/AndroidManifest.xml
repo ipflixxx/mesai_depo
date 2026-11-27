@@ -52,7 +52,7 @@
 
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="${admobAppId}" />
+            android:value="ca-app-pub-6163614817121854~5113437207" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
