@@ -81,7 +81,7 @@ export const AppShell: React.FC = () => {
     <div className="min-h-screen bg-[#F6F8F6] dark:bg-[#101211] text-[#17221B] dark:text-[#F4F7F5] flex flex-col pt-safe">
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1 w-full max-w-4xl mx-auto px-3 min-[360px]:px-4 sm:px-6 pt-5 pb-24 sm:pt-7">
+        <main className="flex-1 w-full max-w-4xl mx-auto px-3 min-[360px]:px-4 sm:px-6 pt-5 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] sm:pt-7 sm:pb-28">
           <Outlet />
         </main>
       </div>

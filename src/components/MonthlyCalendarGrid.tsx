@@ -182,7 +182,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
   return (
     <section
       aria-label="Aylık mesai takvimi"
-      className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-2.5 min-[390px]:p-3.5 sm:p-6"
+      className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-3 min-[360px]:p-3.5 sm:p-6"
     >
       {/* Month, View Switcher & Navigation */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5 sm:mb-5 px-0.5 sm:px-0">
@@ -259,11 +259,11 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
       {displayMode === 'calendar' ? (
         <>
           {/* Weekday Headers (Monday start, exact alignment with day cells) */}
-          <div className="grid grid-cols-7 gap-1 min-[390px]:gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+          <div className="grid grid-cols-7 gap-[clamp(0.375rem,2vw,0.75rem)] mb-2 sm:mb-2.5">
             {WEEKDAYS_TR.map((day, i) => (
               <div
                 key={day}
-                className={`text-center text-[11px] sm:text-xs font-semibold py-1 ${
+                className={`min-w-0 text-center text-[clamp(0.6875rem,2.8vw,0.75rem)] font-semibold py-1 ${
                   i >= 5
                     ? 'text-[#77827B]/80 dark:text-[#929B95]/75'
                     : 'text-[#77827B] dark:text-[#929B95]'
@@ -274,17 +274,18 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
             ))}
           </div>
 
-          {/* Day Cells */}
-          <div className="grid grid-cols-7 gap-1 min-[390px]:gap-1.5 sm:gap-2">
+          {/* Day Cells (responsive 7-column grid with equal spacing and 5/6-week uniformity) */}
+          <div className="grid grid-cols-7 auto-rows-fr gap-[clamp(0.375rem,2vw,0.75rem)]">
             {calendarDays.map((cell, idx) => {
               if (!cell.dateStr || !cell.dayNum) {
                 return (
                   <div
                     key={`empty-${idx}`}
+                    aria-hidden="true"
                     className={
                       hasCellDetailText
-                        ? 'min-h-[68px] min-[360px]:min-h-[72px] sm:min-h-[82px]'
-                        : 'min-h-[48px] sm:min-h-[56px]'
+                        ? 'min-w-0 min-h-[clamp(3.75rem,15.5vw,5.25rem)]'
+                        : 'min-w-0 min-h-[clamp(3rem,11vw,3.875rem)]'
                     }
                   />
                 );
@@ -369,9 +370,9 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                   aria-pressed={isSelected}
                   className={`${
                     hasCellDetailText
-                      ? 'min-h-[68px] min-[360px]:min-h-[72px] sm:min-h-[82px] py-1.5 px-0.5 min-[390px]:px-1 justify-between'
-                      : 'min-h-[48px] sm:min-h-[56px] py-1.5 px-1 justify-center gap-1'
-                  } rounded-xl sm:rounded-2xl flex flex-col items-center relative transition-colors overflow-hidden ${
+                      ? 'min-h-[clamp(3.75rem,15.5vw,5.25rem)] p-[clamp(0.25rem,1.2vw,0.5rem)] justify-between'
+                      : 'min-h-[clamp(3rem,11vw,3.875rem)] p-[clamp(0.25rem,1.2vw,0.5rem)] justify-center gap-1'
+                  } w-full min-w-0 rounded-xl sm:rounded-2xl flex flex-col items-center relative transition-colors overflow-hidden ${
                     isSelected
                       ? 'bg-[#159B61]/12 dark:bg-[#39D98A]/14 ring-2 ring-[#159B61] dark:ring-[#39D98A] text-[#17221B] dark:text-[#F4F7F5]'
                       : isToday
@@ -384,14 +385,14 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                   {/* Top Day Header (never overlaps multi-entry indicator) */}
                   <div className="w-full flex items-center justify-center relative pt-0.5">
                     <span
-                      className={`font-sans sm:font-mono text-[12.5px] min-[360px]:text-[13px] sm:text-sm font-bold tabular-nums leading-none ${
+                      className={`font-sans sm:font-mono text-[clamp(0.75rem,3.3vw,0.9375rem)] font-bold tabular-nums leading-none ${
                         isToday && !isSelected ? 'text-[#159B61] dark:text-[#39D98A]' : ''
                       }`}
                     >
                       {cell.dayNum}
                     </span>
                     {entryCount > 1 && (
-                      <span className="absolute right-0.5 top-0 font-sans text-[8px] leading-none font-bold text-[#77827B] dark:text-[#929B95] tabular-nums">
+                      <span className="absolute right-0 top-0 font-sans text-[clamp(0.5rem,1.9vw,0.625rem)] leading-none font-bold text-[#77827B] dark:text-[#929B95] tabular-nums">
                         ×{entryCount}
                       </span>
                     )}
@@ -399,7 +400,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
 
                   {showEarningsInCells ? (
                     <div
-                      className={`w-full text-center leading-none flex items-center justify-center min-h-[22px] ${
+                      className={`w-full text-center leading-none flex items-center justify-center min-h-[clamp(1.25rem,4.8vw,1.5rem)] ${
                         entryCount > 0
                           ? 'pt-1 border-t border-black/[0.06] dark:border-white/[0.08]'
                           : ''
@@ -409,7 +410,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                         <span className="block h-3" />
                       ) : dayEarnings !== 0 ? (
                         <span
-                          className={`block font-sans sm:font-mono text-[8.5px] min-[360px]:text-[9px] min-[390px]:text-[10px] sm:text-[11px] font-bold tracking-[-0.03em] sm:tracking-tight tabular-nums whitespace-nowrap ${
+                          className={`block w-full font-sans sm:font-mono text-[clamp(0.53125rem,2.35vw,0.75rem)] font-bold tracking-[-0.03em] sm:tracking-tight tabular-nums whitespace-nowrap ${
                             dayEarnings > 0
                               ? 'text-[#159B61] dark:text-[#39D98A]'
                               : 'text-red-600 dark:text-red-400'
@@ -423,14 +424,14 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                           </span>
                         </span>
                       ) : (
-                        <span className="block font-sans text-[9.5px] sm:text-[10px] text-[#77827B] dark:text-[#929B95] whitespace-nowrap">
+                        <span className="block font-sans text-[clamp(0.5625rem,2.3vw,0.6875rem)] text-[#77827B] dark:text-[#929B95] whitespace-nowrap">
                           {hasLeave ? 'İzin' : 'Normal'}
                         </span>
                       )}
                     </div>
                   ) : showHoursInCells ? (
                     <div
-                      className={`w-full text-center leading-tight flex flex-col items-center justify-center gap-[2px] min-h-[24px] ${
+                      className={`w-full text-center leading-tight flex flex-col items-center justify-center gap-[2px] min-h-[clamp(1.375rem,5vw,1.625rem)] ${
                         entryCount > 0
                           ? 'pt-1 border-t border-black/[0.06] dark:border-white/[0.08]'
                           : ''
@@ -443,7 +444,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                           {hasRate50 && (
                             <span
                               title="%50 mesai"
-                              className="block w-full font-sans sm:font-mono text-[9.5px] min-[390px]:text-[10.5px] sm:text-[11px] font-bold tracking-[-0.02em] sm:tracking-tight text-[#D97706] dark:text-[#F59E0B] tabular-nums leading-none whitespace-nowrap"
+                              className="block w-full font-sans sm:font-mono text-[clamp(0.5625rem,2.5vw,0.75rem)] font-bold tracking-[-0.02em] sm:tracking-tight text-[#D97706] dark:text-[#F59E0B] tabular-nums leading-none whitespace-nowrap"
                             >
                               {formatCompactHours(rate50Minutes)}
                             </span>
@@ -451,18 +452,18 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                           {hasRate100 && (
                             <span
                               title="%100 mesai"
-                              className="block w-full font-sans sm:font-mono text-[9.5px] min-[390px]:text-[10.5px] sm:text-[11px] font-bold tracking-[-0.02em] sm:tracking-tight text-[#7C3AED] dark:text-[#A78BFA] tabular-nums leading-none whitespace-nowrap"
+                              className="block w-full font-sans sm:font-mono text-[clamp(0.5625rem,2.5vw,0.75rem)] font-bold tracking-[-0.02em] sm:tracking-tight text-[#7C3AED] dark:text-[#A78BFA] tabular-nums leading-none whitespace-nowrap"
                             >
                               {formatCompactHours(rate100Minutes)}
                             </span>
                           )}
                         </>
                       ) : hasNormal ? (
-                        <span className="block w-full font-sans sm:font-mono text-[9.5px] min-[390px]:text-[10.5px] sm:text-[11px] font-bold tracking-[-0.02em] sm:tracking-tight text-[#159B61] dark:text-[#39D98A] tabular-nums leading-none whitespace-nowrap">
+                        <span className="block w-full font-sans sm:font-mono text-[clamp(0.5625rem,2.5vw,0.75rem)] font-bold tracking-[-0.02em] sm:tracking-tight text-[#159B61] dark:text-[#39D98A] tabular-nums leading-none whitespace-nowrap">
                           {formatCompactHours(normalMinutes)}
                         </span>
                       ) : hasLeave ? (
-                        <span className="block font-sans text-[9.5px] sm:text-[10px] font-medium text-[#2563EB] dark:text-[#60A5FA] leading-none whitespace-nowrap">
+                        <span className="block font-sans text-[clamp(0.5625rem,2.3vw,0.6875rem)] font-medium text-[#2563EB] dark:text-[#60A5FA] leading-none whitespace-nowrap">
                           İzin
                         </span>
                       ) : (
