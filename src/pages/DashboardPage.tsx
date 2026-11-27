@@ -15,8 +15,14 @@ import {
 } from '../utils/calculations';
 
 export const DashboardPage: React.FC = () => {
-  const { settings, entries, openNewEntryModal, openEditEntryModal, updateSettings } =
-    useMesai();
+  const {
+    settings,
+    entries,
+    openNewEntryModal,
+    openEditEntryModal,
+    requestDeleteEntry,
+    updateSettings,
+  } = useMesai();
   const isDark = useResolvedDark(settings.themeMode);
 
   const todayStr = getTodayDateString();
@@ -129,6 +135,7 @@ export const DashboardPage: React.FC = () => {
         onSelectDate={setSelectedDate}
         onSelectedDayClick={(dateStr) => openNewEntryModal(dateStr)}
         onEditEntry={(entry) => openEditEntryModal(entry)}
+        onDeleteEntry={(entry) => requestDeleteEntry(entry)}
         onPrevMonth={handlePrevMonth}
         onNextMonth={handleNextMonth}
         onJumpToday={handleJumpToday}

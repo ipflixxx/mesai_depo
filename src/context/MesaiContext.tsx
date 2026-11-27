@@ -34,6 +34,7 @@ interface MesaiContextValue {
   entries: WorkEntry[];
   isHydrating: boolean;
   modalState: EntryModalState;
+  pendingDeleteEntry: WorkEntry | null;
   runtimeInfo: AppRuntimeInfo;
   updateResult: UpdateCheckResult | null;
   isCheckingUpdate: boolean;
@@ -44,6 +45,9 @@ interface MesaiContextValue {
   openNewEntryModal: (date?: string) => void;
   openEditEntryModal: (entry: WorkEntry) => void;
   closeEntryModal: () => void;
+  requestDeleteEntry: (entry: WorkEntry) => void;
+  cancelDeleteEntry: () => void;
+  confirmDeleteEntry: () => Promise<void>;
   updateSettings: (partial: Partial<UserSettings>) => Promise<void>;
   completeOnboarding: (initialSettings: UserSettings) => Promise<void>;
   addEntry: (input: WorkEntryInput) => Promise<void>;
@@ -64,6 +68,7 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     editingEntry: null,
     defaultDate: getTodayDateString(),
   });
+  const [pendingDeleteEntry, setPendingDeleteEntry] = useState<WorkEntry | null>(null);
 
   const [runtimeInfo, setRuntimeInfo] = useState<AppRuntimeInfo>({
     appId: APP_ID,
@@ -165,6 +170,14 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setModalState((prev) => ({ ...prev, isOpen: false, editingEntry: null }));
   }, []);
 
+  const requestDeleteEntry = useCallback((entry: WorkEntry) => {
+    setPendingDeleteEntry(entry);
+  }, []);
+
+  const cancelDeleteEntry = useCallback(() => {
+    setPendingDeleteEntry(null);
+  }, []);
+
   const updateSettings = useCallback(
     async (partial: Partial<UserSettings>) => {
       const nextSettings: UserSettings = { ...settings, ...partial };
@@ -255,6 +268,18 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [entries, settings]
   );
 
+  const confirmDeleteEntry = useCallback(async () => {
+    if (!pendingDeleteEntry) return;
+    const targetId = pendingDeleteEntry.id;
+    await deleteEntry(targetId);
+    setPendingDeleteEntry(null);
+    setModalState((prev) =>
+      prev.isOpen && prev.editingEntry?.id === targetId
+        ? { ...prev, isOpen: false, editingEntry: null }
+        : prev
+    );
+  }, [pendingDeleteEntry, deleteEntry]);
+
   const restoreBackup = useCallback(
     async (newSettings: UserSettings, newEntries: WorkEntry[]) => {
       const cleanSettings: UserSettings = {
@@ -297,6 +322,7 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         entries,
         isHydrating,
         modalState,
+        pendingDeleteEntry,
         runtimeInfo,
         updateResult,
         isCheckingUpdate,
@@ -307,6 +333,9 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         openNewEntryModal,
         openEditEntryModal,
         closeEntryModal,
+        requestDeleteEntry,
+        cancelDeleteEntry,
+        confirmDeleteEntry,
         updateSettings,
         completeOnboarding,
         addEntry,

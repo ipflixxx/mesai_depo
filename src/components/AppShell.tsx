@@ -3,6 +3,7 @@ import { BarChart3, Calculator, Home, Settings, Wallet } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useMesai } from '../context/MesaiContext';
 import { AndroidUpdateModal } from './AndroidUpdateModal';
+import { DeleteEntryConfirmModal } from './DeleteEntryConfirmModal';
 import { WorkEntryModal } from './WorkEntryModal';
 
 const NAV_ITEMS = [
@@ -27,6 +28,8 @@ export const AppShell: React.FC = () => {
     closeUpdateModal,
     modalState,
     closeEntryModal,
+    pendingDeleteEntry,
+    cancelDeleteEntry,
   } = useMesai();
   const location = useLocation();
   const navigate = useNavigate();
@@ -38,6 +41,11 @@ export const AppShell: React.FC = () => {
           return 'blocked';
         }
         closeUpdateModal();
+        return 'handled';
+      }
+
+      if (pendingDeleteEntry) {
+        cancelDeleteEntry();
         return 'handled';
       }
 
@@ -61,6 +69,8 @@ export const AppShell: React.FC = () => {
     isUpdateModalOpen,
     updateResult?.mandatory,
     closeUpdateModal,
+    pendingDeleteEntry,
+    cancelDeleteEntry,
     modalState.isOpen,
     closeEntryModal,
     location.pathname,
@@ -112,6 +122,7 @@ export const AppShell: React.FC = () => {
       </nav>
 
       <WorkEntryModal />
+      <DeleteEntryConfirmModal />
       <AndroidUpdateModal
         isOpen={isUpdateModalOpen}
         runtimeInfo={runtimeInfo}

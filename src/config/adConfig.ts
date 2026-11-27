@@ -29,7 +29,7 @@ export const ADMOB_PROFILES = {
   },
 } as const;
 
-export const INTERSTITIAL_AD_FREQUENCY = 2;
+export const INTERSTITIAL_AD_FREQUENCY = 1;
 export const AD_COUNTER_STORAGE_KEY = 'mesai_ad_state_v1';
 
 export interface AdMobConfig {

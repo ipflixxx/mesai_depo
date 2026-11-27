@@ -31,7 +31,7 @@ export const WorkEntryModal: React.FC = () => {
     closeEntryModal,
     addEntry,
     updateEntry,
-    deleteEntry,
+    requestDeleteEntry,
   } = useMesai();
 
   const { isOpen, editingEntry, defaultDate } = modalState;
@@ -49,7 +49,6 @@ export const WorkEntryModal: React.FC = () => {
   const [showNotes, setShowNotes] = useState(false);
   const [notes, setNotes] = useState('');
 
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -73,7 +72,6 @@ export const WorkEntryModal: React.FC = () => {
   useEffect(() => {
     if (!isOpen) return;
     setSubmitError(null);
-    setConfirmDelete(false);
 
     if (editingEntry) {
       setDate(editingEntry.date);
@@ -246,14 +244,9 @@ export const WorkEntryModal: React.FC = () => {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!editingEntry) return;
-    if (!confirmDelete) {
-      setConfirmDelete(true);
-      return;
-    }
-    await deleteEntry(editingEntry.id);
-    closeEntryModal();
+    requestDeleteEntry(editingEntry);
   };
 
   return (
@@ -610,14 +603,10 @@ export const WorkEntryModal: React.FC = () => {
               <button
                 type="button"
                 onClick={handleDelete}
-                className={`min-h-[48px] px-4 rounded-2xl text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
-                  confirmDelete
-                    ? 'bg-red-600 text-white'
-                    : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-red-600 dark:text-red-400'
-                }`}
+                className="min-h-[48px] px-4 rounded-2xl text-sm font-medium flex items-center justify-center gap-1.5 transition-colors bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-red-600 dark:text-red-400 hover:bg-red-500/10"
               >
                 <Trash2 className="w-4 h-4" />
-                <span>{confirmDelete ? 'Sil?' : 'Sil'}</span>
+                <span>Sil</span>
               </button>
             )}
             <button

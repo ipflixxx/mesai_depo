@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, List, Plus } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, List, Plus, Trash2 } from 'lucide-react';
 import { CurrencyCode, WorkEntry } from '../types/mesai';
 import {
   CURRENCY_CONFIG,
@@ -103,6 +103,7 @@ interface MonthlyCalendarGridProps {
   onSelectDate: (dateStr: string) => void;
   onSelectedDayClick?: (dateStr: string) => void;
   onEditEntry?: (entry: WorkEntry) => void;
+  onDeleteEntry?: (entry: WorkEntry) => void;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onJumpToday: () => void;
@@ -121,6 +122,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
   onSelectDate,
   onSelectedDayClick,
   onEditEntry,
+  onDeleteEntry,
   onPrevMonth,
   onNextMonth,
   onJumpToday,
@@ -540,42 +542,57 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                     const isLeaveEntry =
                       entry.workType === 'paid_leave' || entry.workType === 'unpaid_leave';
                     return (
-                      <button
+                      <div
                         key={entry.id}
-                        type="button"
-                        onClick={() => onEditEntry?.(entry)}
-                        disabled={!onEditEntry}
-                        className="w-full py-2 flex items-center justify-between gap-3 text-left hover:opacity-80 transition-opacity disabled:cursor-default"
+                        className="py-1.5 flex items-center justify-between gap-2"
                       >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span
-                            className={`w-2 h-2 rounded-full shrink-0 ${getToneDotClass(
-                              info.tone
-                            )}`}
-                          />
-                          <span className="text-xs font-medium text-[#17221B] dark:text-[#F4F7F5] truncate">
-                            {info.label}
-                          </span>
-                          {entry.notes && (
-                            <span className="text-[11px] text-[#77827B] dark:text-[#929B95] truncate">
-                              · {entry.notes}
+                        <button
+                          type="button"
+                          onClick={() => onEditEntry?.(entry)}
+                          disabled={!onEditEntry}
+                          className="flex-1 min-w-0 py-1 flex items-center justify-between gap-2.5 text-left hover:opacity-80 transition-opacity disabled:cursor-default"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className={`w-2 h-2 rounded-full shrink-0 ${getToneDotClass(
+                                info.tone
+                              )}`}
+                            />
+                            <span className="text-xs font-medium text-[#17221B] dark:text-[#F4F7F5] truncate">
+                              {info.label}
                             </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2.5 shrink-0 font-mono text-xs tabular-nums">
-                          {!isLeaveEntry && (
-                            <span className="text-[#77827B] dark:text-[#929B95]">
-                              {formatDuration(entry.calculatedDurationMinutes)}
-                            </span>
-                          )}
-                          {entry.estimatedEarnings !== 0 && (
-                            <span className={`font-semibold ${getToneTextClass(info.tone)}`}>
-                              {entry.estimatedEarnings > 0 ? '+' : ''}
-                              {formatCurrency(entry.estimatedEarnings, currency)}
-                            </span>
-                          )}
-                        </div>
-                      </button>
+                            {entry.notes && (
+                              <span className="text-[11px] text-[#77827B] dark:text-[#929B95] truncate">
+                                · {entry.notes}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 font-mono text-xs tabular-nums">
+                            {!isLeaveEntry && (
+                              <span className="text-[#77827B] dark:text-[#929B95]">
+                                {formatDuration(entry.calculatedDurationMinutes)}
+                              </span>
+                            )}
+                            {entry.estimatedEarnings !== 0 && (
+                              <span className={`font-semibold ${getToneTextClass(info.tone)}`}>
+                                {entry.estimatedEarnings > 0 ? '+' : ''}
+                                {formatCurrency(entry.estimatedEarnings, currency)}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                        {onDeleteEntry && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteEntry(entry)}
+                            aria-label={`${formatTurkishDate(entry.date)} kaydını sil`}
+                            title="Kaydı sil"
+                            className="min-h-[34px] min-w-[34px] shrink-0 flex items-center justify-center rounded-xl text-red-600/80 dark:text-red-400/80 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -609,9 +626,14 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                 <table className="w-full table-auto border-collapse text-left">
                   <thead>
                     <tr className="border-b border-[#D7E0DA] dark:border-white/[0.08] text-[10.5px] min-[360px]:text-[11px] font-semibold text-[#77827B] dark:text-[#929B95]">
-                      <th className="py-2 pr-1.5">Tarih & Tür</th>
-                      <th className="w-[1%] whitespace-nowrap py-2 px-1.5 text-right">Süre</th>
-                      <th className="w-[1%] whitespace-nowrap py-2 pl-1.5 text-right">Kazanç</th>
+                      <th className="py-2 pr-1">Tarih & Tür</th>
+                      <th className="w-[1%] whitespace-nowrap py-2 px-1 text-right">Süre</th>
+                      <th className="w-[1%] whitespace-nowrap py-2 pl-1 text-right">Kazanç</th>
+                      {onDeleteEntry && (
+                        <th className="w-[1%] whitespace-nowrap py-2 pl-1 text-right">
+                          <span className="sr-only">Sil</span>
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#D7E0DA] dark:divide-white/[0.06]">
@@ -633,29 +655,29 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                               : ''
                           }
                         >
-                          <td className="py-2.5 pr-1.5 align-middle max-w-0 w-full">
+                          <td className="py-2.5 pr-1 align-middle max-w-0 w-full">
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span
                                 className={`w-2 h-2 rounded-full shrink-0 ${getToneDotClass(
                                   info.tone
                                 )}`}
                               />
-                              <span className="text-[12.5px] min-[360px]:text-[13px] font-semibold text-[#2A302D] dark:text-[#F5F3EE] truncate">
+                              <span className="text-[12px] min-[360px]:text-[13px] font-semibold text-[#2A302D] dark:text-[#F5F3EE] truncate">
                                 {formatTurkishDate(entry.date)}
                               </span>
                             </div>
-                            <p className="pl-3.5 mt-0.5 text-[11px] text-[#77827B] dark:text-[#929B95] truncate">
+                            <p className="pl-3.5 mt-0.5 text-[10.5px] min-[360px]:text-[11px] text-[#77827B] dark:text-[#929B95] truncate">
                               {info.label}
                               {entry.notes ? ` · ${entry.notes}` : ''}
                             </p>
                           </td>
 
-                          <td className="w-[1%] whitespace-nowrap py-2.5 px-1.5 text-right align-middle font-sans text-[11px] min-[360px]:text-xs text-[#77827B] dark:text-[#929B95] tabular-nums">
+                          <td className="w-[1%] whitespace-nowrap py-2.5 px-1 text-right align-middle font-sans text-[11px] min-[360px]:text-xs text-[#77827B] dark:text-[#929B95] tabular-nums">
                             {isLeaveEntry ? '—' : formatDuration(entry.calculatedDurationMinutes)}
                           </td>
 
                           <td
-                            className={`w-[1%] whitespace-nowrap py-2.5 pl-1.5 text-right align-middle font-sans text-[12px] min-[360px]:text-[13px] font-bold tabular-nums ${
+                            className={`w-[1%] whitespace-nowrap py-2.5 pl-1 text-right align-middle font-sans text-[11.5px] min-[360px]:text-[13px] font-bold tabular-nums ${
                               entry.estimatedEarnings < 0
                                 ? 'text-red-600 dark:text-red-400'
                                 : entry.estimatedEarnings > 0
@@ -672,6 +694,23 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                               ? 'İzin'
                               : 'Normal'}
                           </td>
+
+                          {onDeleteEntry && (
+                            <td className="w-[1%] whitespace-nowrap py-1.5 pl-1 text-right align-middle">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteEntry(entry);
+                                }}
+                                aria-label={`${formatTurkishDate(entry.date)} kaydını sil`}
+                                title="Kaydı sil"
+                                className="min-h-[34px] min-w-[32px] inline-flex items-center justify-center rounded-xl text-red-600/80 dark:text-red-400/80 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -689,6 +728,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                       <th className="py-2.5 px-3 text-right">Süre</th>
                       <th className="py-2.5 px-3 text-right">Kazanç</th>
                       <th className="py-2.5 pl-3">Not</th>
+                      {onDeleteEntry && <th className="py-2.5 pl-3 text-right">İşlem</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#D7E0DA] dark:divide-white/[0.06] text-sm">
@@ -745,6 +785,22 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                           <td className="py-3 pl-3 text-xs text-[#77827B] dark:text-[#929B95] max-w-[180px] truncate">
                             {entry.notes || '—'}
                           </td>
+                          {onDeleteEntry && (
+                            <td className="py-2 pl-3 text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteEntry(entry);
+                                }}
+                                aria-label={`${formatTurkishDate(entry.date)} kaydını sil`}
+                                title="Kaydı sil"
+                                className="min-h-[34px] min-w-[34px] inline-flex items-center justify-center rounded-xl text-red-600/80 dark:text-red-400/80 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}

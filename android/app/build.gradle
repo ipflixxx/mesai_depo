@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
-def resolvedVersionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "10008").toInteger()
-def resolvedVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "1.0.8"
+def resolvedVersionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "10009").toInteger()
+def resolvedVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "1.0.9"
 
 def admobIsTestMode = true
 def productionAdmobAppId = (System.getenv("ADMOB_APP_ID") ?: "ca-app-pub-6163614817121854~5113437207").trim()
