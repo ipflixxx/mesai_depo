@@ -14,6 +14,7 @@ import {
   loadSettingsSync,
   storageService,
 } from '../services/storageService';
+import { adService } from '../services/adService';
 import { UserSettings, WorkEntry, WorkEntryInput } from '../types/mesai';
 import { AppRuntimeInfo, UpdateCheckResult } from '../types/update';
 import {
@@ -130,6 +131,7 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isHydrating || initialUpdateCheckedRef.current) return;
     initialUpdateCheckedRef.current = true;
     void checkForUpdates(true);
+    void adService.initAdsIfNeeded();
   }, [isHydrating, checkForUpdates]);
 
   const openUpdateModal = useCallback(() => {

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Calendar, ChevronDown, Minus, Plus, Trash2, X } from 'lucide-react';
 import { useMesai } from '../context/MesaiContext';
+import { adService } from '../services/adService';
 import { WorkEntryInput, WorkType } from '../types/mesai';
 import { NumericInput, parseLocaleNumber } from './NumericInput';
 import {
@@ -50,6 +51,7 @@ export const WorkEntryModal: React.FC = () => {
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Pick a non-overlapping start time automatically when using simple hour entry
   const findNextFreeStartTime = (targetDate: string, preferredStart: string): string => {
@@ -205,6 +207,7 @@ export const WorkEntryModal: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!date) {
       setSubmitError('Lütfen bir tarih seçin.');
       return;
@@ -221,12 +224,26 @@ export const WorkEntryModal: React.FC = () => {
       return;
     }
 
-    if (editingEntry) {
-      await updateEntry(editingEntry.id, inputPayload);
-    } else {
-      await addEntry(inputPayload);
+    setIsSubmitting(true);
+    let savedNewEntry = false;
+    try {
+      if (editingEntry) {
+        await updateEntry(editingEntry.id, inputPayload);
+      } else {
+        await addEntry(inputPayload);
+        savedNewEntry = true;
+      }
+      closeEntryModal();
+    } catch {
+      setSubmitError('Kayıt sırasında bir sorun oluştu. Lütfen tekrar deneyin.');
+      return;
+    } finally {
+      setIsSubmitting(false);
     }
-    closeEntryModal();
+
+    if (savedNewEntry) {
+      void adService.recordSuccessfulWorkEntrySave();
+    }
   };
 
   const handleDelete = async () => {
