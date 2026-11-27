@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, List, Plus } from 'lucide-react';
 import { CurrencyCode, WorkEntry } from '../types/mesai';
 import {
+  CURRENCY_CONFIG,
   WORK_TYPE_LABELS,
   formatCompactCurrency,
   formatCurrency,
@@ -12,6 +13,21 @@ import {
 } from '../utils/calculations';
 
 const WEEKDAYS_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+
+function formatCalendarMobileCurrency(amount: number, currency: CurrencyCode): string {
+  const safe = Number.isFinite(amount) ? Math.round(amount) : 0;
+  const symbol = CURRENCY_CONFIG[currency]?.symbol ?? '₺';
+  const sign = safe > 0 ? '+' : safe < 0 ? '-' : '';
+  const abs = Math.abs(safe);
+  if (abs >= 10000) {
+    const thousands = new Intl.NumberFormat('tr-TR', {
+      minimumFractionDigits: abs >= 100000 ? 0 : 1,
+      maximumFractionDigits: abs >= 100000 ? 0 : 1,
+    }).format(abs / 1000);
+    return `${sign}${thousands}b${symbol}`;
+  }
+  return formatCompactCurrency(safe, currency);
+}
 
 function formatCompactHours(totalMinutes: number): string {
   const safe = Math.max(0, Math.round(totalMinutes));
@@ -164,17 +180,17 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
   return (
     <section
       aria-label="Aylık mesai takvimi"
-      className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-3.5 sm:p-6"
+      className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-2.5 min-[390px]:p-3.5 sm:p-6"
     >
       {/* Month, View Switcher & Navigation */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 mb-3.5 sm:mb-5">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <h2 className="text-base sm:text-lg font-bold text-[#2A302D] dark:text-[#F5F3EE] truncate">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5 sm:mb-5 px-0.5 sm:px-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="text-[15px] min-[360px]:text-base sm:text-lg font-bold text-[#2A302D] dark:text-[#F5F3EE] truncate">
             {formatMonthYear(viewYear, viewMonth)}
           </h2>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+        <div className="flex items-center gap-1 min-[360px]:gap-1.5 shrink-0 ml-auto">
           {/* Takvim / Liste Görünümü */}
           <div
             role="group"
@@ -186,7 +202,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
               onClick={() => setDisplayMode('calendar')}
               aria-label="Takvim görünümü"
               aria-pressed={displayMode === 'calendar'}
-              className={`min-h-[34px] px-2.5 rounded-[10px] flex items-center gap-1 text-xs font-medium transition-colors whitespace-nowrap ${
+              className={`min-h-[34px] px-2 min-[360px]:px-2.5 rounded-[10px] flex items-center gap-1 text-xs font-medium transition-colors whitespace-nowrap ${
                 displayMode === 'calendar'
                   ? 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5] border border-[#CFD8D2] dark:border-white/[0.08]'
                   : 'text-[#77827B] dark:text-[#929B95]'
@@ -200,7 +216,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
               onClick={() => setDisplayMode('list')}
               aria-label="Liste görünümü"
               aria-pressed={displayMode === 'list'}
-              className={`min-h-[34px] px-2.5 rounded-[10px] flex items-center gap-1 text-xs font-medium transition-colors whitespace-nowrap ${
+              className={`min-h-[34px] px-2 min-[360px]:px-2.5 rounded-[10px] flex items-center gap-1 text-xs font-medium transition-colors whitespace-nowrap ${
                 displayMode === 'list'
                   ? 'bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5] border border-[#CFD8D2] dark:border-white/[0.08]'
                   : 'text-[#77827B] dark:text-[#929B95]'
@@ -214,7 +230,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
           <button
             type="button"
             onClick={onJumpToday}
-            className="min-h-[38px] px-2.5 sm:px-3 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-xs font-medium text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity whitespace-nowrap"
+            className="min-h-[36px] sm:min-h-[38px] px-2 min-[360px]:px-2.5 sm:px-3 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[11px] min-[360px]:text-xs font-medium text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity whitespace-nowrap"
           >
             <span className="sm:hidden">Bugün</span>
             <span className="hidden sm:inline">Bugüne Dön</span>
@@ -223,7 +239,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
             type="button"
             onClick={onPrevMonth}
             aria-label="Önceki ay"
-            className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity"
+            className="min-h-[36px] min-w-[34px] sm:min-h-[38px] sm:min-w-[38px] flex items-center justify-center rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -231,7 +247,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
             type="button"
             onClick={onNextMonth}
             aria-label="Sonraki ay"
-            className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity"
+            className="min-h-[36px] min-w-[34px] sm:min-h-[38px] sm:min-w-[38px] flex items-center justify-center rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -240,8 +256,8 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
 
       {displayMode === 'calendar' ? (
         <>
-          {/* Weekday Headers (Monday start) */}
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2 mb-1.5">
+          {/* Weekday Headers (Monday start, exact alignment with day cells) */}
+          <div className="grid grid-cols-7 gap-1 min-[390px]:gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
             {WEEKDAYS_TR.map((day, i) => (
               <div
                 key={day}
@@ -257,7 +273,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
           </div>
 
           {/* Day Cells */}
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-7 gap-1 min-[390px]:gap-1.5 sm:gap-2">
             {calendarDays.map((cell, idx) => {
               if (!cell.dateStr || !cell.dayNum) {
                 return (
@@ -265,7 +281,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                     key={`empty-${idx}`}
                     className={
                       hasCellDetailText
-                        ? 'min-h-[64px] sm:min-h-[76px]'
+                        ? 'min-h-[68px] min-[360px]:min-h-[72px] sm:min-h-[82px]'
                         : 'min-h-[48px] sm:min-h-[56px]'
                     }
                   />
@@ -351,9 +367,9 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                   aria-pressed={isSelected}
                   className={`${
                     hasCellDetailText
-                      ? 'min-h-[64px] sm:min-h-[76px] py-1.5 justify-between'
-                      : 'min-h-[48px] sm:min-h-[56px] justify-center gap-1'
-                  } rounded-xl sm:rounded-2xl flex flex-col items-center relative transition-colors px-1 overflow-hidden ${
+                      ? 'min-h-[68px] min-[360px]:min-h-[72px] sm:min-h-[82px] py-1.5 px-0.5 min-[390px]:px-1 justify-between'
+                      : 'min-h-[48px] sm:min-h-[56px] py-1.5 px-1 justify-center gap-1'
+                  } rounded-xl sm:rounded-2xl flex flex-col items-center relative transition-colors overflow-hidden ${
                     isSelected
                       ? 'bg-[#159B61]/12 dark:bg-[#39D98A]/14 ring-2 ring-[#159B61] dark:ring-[#39D98A] text-[#17221B] dark:text-[#F4F7F5]'
                       : isToday
@@ -363,43 +379,61 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                       : 'border border-[#DFE6E1] dark:border-white/[0.05] hover:bg-[#EEF2EF]/70 dark:hover:bg-[#222925]/60 text-[#17221B] dark:text-[#F4F7F5]'
                   }`}
                 >
-                  {/* Multi-entry count */}
-                  {entryCount > 1 && (
-                    <span className="absolute top-1 right-1 font-mono text-[9px] leading-none font-semibold text-[#77827B] dark:text-[#929B95] tabular-nums">
-                      ×{entryCount}
+                  {/* Top Day Header (never overlaps multi-entry indicator) */}
+                  <div className="w-full flex items-center justify-center relative pt-0.5">
+                    <span
+                      className={`font-sans sm:font-mono text-[12.5px] min-[360px]:text-[13px] sm:text-sm font-bold tabular-nums leading-none ${
+                        isToday && !isSelected ? 'text-[#159B61] dark:text-[#39D98A]' : ''
+                      }`}
+                    >
+                      {cell.dayNum}
                     </span>
-                  )}
-
-                  <span
-                    className={`font-mono text-[13px] sm:text-sm font-bold tabular-nums leading-none ${
-                      isToday && !isSelected ? 'text-[#159B61] dark:text-[#39D98A]' : ''
-                    }`}
-                  >
-                    {cell.dayNum}
-                  </span>
+                    {entryCount > 1 && (
+                      <span className="absolute right-0.5 top-0 font-sans text-[8px] leading-none font-bold text-[#77827B] dark:text-[#929B95] tabular-nums">
+                        ×{entryCount}
+                      </span>
+                    )}
+                  </div>
 
                   {showEarningsInCells ? (
-                    <div className="w-full text-center leading-none">
+                    <div
+                      className={`w-full text-center leading-none flex items-center justify-center min-h-[22px] ${
+                        entryCount > 0
+                          ? 'pt-1 border-t border-black/[0.06] dark:border-white/[0.08]'
+                          : ''
+                      }`}
+                    >
                       {entryCount === 0 ? (
                         <span className="block h-3" />
                       ) : dayEarnings !== 0 ? (
                         <span
-                          className={`block font-mono text-[10px] sm:text-[11px] font-bold tracking-tight tabular-nums truncate ${
+                          className={`block font-sans sm:font-mono text-[8.5px] min-[360px]:text-[9px] min-[390px]:text-[10px] sm:text-[11px] font-bold tracking-[-0.03em] sm:tracking-tight tabular-nums whitespace-nowrap ${
                             dayEarnings > 0
                               ? 'text-[#159B61] dark:text-[#39D98A]'
                               : 'text-red-600 dark:text-red-400'
                           }`}
                         >
-                          {formatCompactCurrency(dayEarnings, currency)}
+                          <span className="sm:hidden">
+                            {formatCalendarMobileCurrency(dayEarnings, currency)}
+                          </span>
+                          <span className="hidden sm:inline">
+                            {formatCompactCurrency(dayEarnings, currency)}
+                          </span>
                         </span>
                       ) : (
-                        <span className="block font-sans text-[10px] text-[#77827B] dark:text-[#929B95] truncate">
+                        <span className="block font-sans text-[9.5px] sm:text-[10px] text-[#77827B] dark:text-[#929B95] whitespace-nowrap">
                           {hasLeave ? 'İzin' : 'Normal'}
                         </span>
                       )}
                     </div>
                   ) : showHoursInCells ? (
-                    <div className="w-full text-center leading-tight flex flex-col items-center justify-end gap-0.5 min-h-[22px]">
+                    <div
+                      className={`w-full text-center leading-tight flex flex-col items-center justify-center gap-[2px] min-h-[24px] ${
+                        entryCount > 0
+                          ? 'pt-1 border-t border-black/[0.06] dark:border-white/[0.08]'
+                          : ''
+                      }`}
+                    >
                       {entryCount === 0 ? (
                         <span className="block h-3" />
                       ) : hasRate50 || hasRate100 ? (
@@ -407,7 +441,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                           {hasRate50 && (
                             <span
                               title="%50 mesai"
-                              className="block w-full font-mono text-[10px] sm:text-[11px] font-bold tracking-tight text-[#D97706] dark:text-[#F59E0B] tabular-nums leading-none truncate"
+                              className="block w-full font-sans sm:font-mono text-[9.5px] min-[390px]:text-[10.5px] sm:text-[11px] font-bold tracking-[-0.02em] sm:tracking-tight text-[#D97706] dark:text-[#F59E0B] tabular-nums leading-none whitespace-nowrap"
                             >
                               {formatCompactHours(rate50Minutes)}
                             </span>
@@ -415,18 +449,18 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                           {hasRate100 && (
                             <span
                               title="%100 mesai"
-                              className="block w-full font-mono text-[10px] sm:text-[11px] font-bold tracking-tight text-[#7C3AED] dark:text-[#A78BFA] tabular-nums leading-none truncate"
+                              className="block w-full font-sans sm:font-mono text-[9.5px] min-[390px]:text-[10.5px] sm:text-[11px] font-bold tracking-[-0.02em] sm:tracking-tight text-[#7C3AED] dark:text-[#A78BFA] tabular-nums leading-none whitespace-nowrap"
                             >
                               {formatCompactHours(rate100Minutes)}
                             </span>
                           )}
                         </>
                       ) : hasNormal ? (
-                        <span className="block w-full font-mono text-[10px] sm:text-[11px] font-bold tracking-tight text-[#159B61] dark:text-[#39D98A] tabular-nums leading-none truncate">
+                        <span className="block w-full font-sans sm:font-mono text-[9.5px] min-[390px]:text-[10.5px] sm:text-[11px] font-bold tracking-[-0.02em] sm:tracking-tight text-[#159B61] dark:text-[#39D98A] tabular-nums leading-none whitespace-nowrap">
                           {formatCompactHours(normalMinutes)}
                         </span>
                       ) : hasLeave ? (
-                        <span className="block font-sans text-[10px] font-medium text-[#2563EB] dark:text-[#60A5FA] leading-none truncate">
+                        <span className="block font-sans text-[9.5px] sm:text-[10px] font-medium text-[#2563EB] dark:text-[#60A5FA] leading-none whitespace-nowrap">
                           İzin
                         </span>
                       ) : (
@@ -570,69 +604,79 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
             </div>
           ) : (
             <>
-              {/* Mobile Stacked Cards (no horizontal scroll) */}
-              <div className="sm:hidden divide-y divide-[#D7E0DA] dark:divide-white/[0.06]">
-                {monthEntriesSorted.map((entry) => {
-                  const info = getEntryTypeSummary(
-                    entry,
-                    overtimeMultiplier,
-                    weekendMultiplier
-                  );
-                  const isLeaveEntry =
-                    entry.workType === 'paid_leave' || entry.workType === 'unpaid_leave';
-                  return (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      onClick={() => onEditEntry?.(entry)}
-                      disabled={!onEditEntry}
-                      className="w-full py-3 flex items-center justify-between gap-3 text-left"
-                    >
-                      <div className="min-w-0 space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`w-2 h-2 rounded-full shrink-0 ${getToneDotClass(
-                              info.tone
-                            )}`}
-                          />
-                          <span className="text-[13px] font-semibold text-[#2A302D] dark:text-[#F5F3EE]">
-                            {formatTurkishDate(entry.date)}
-                          </span>
-                        </div>
-                        <p className="pl-4 text-xs text-[#77827B] dark:text-[#929B95] truncate">
-                          {info.label}
-                          {entry.notes ? ` · ${entry.notes}` : ''}
-                        </p>
-                      </div>
-
-                      <div className="text-right shrink-0 space-y-0.5">
-                        <p
-                          className={`font-mono text-sm font-bold tabular-nums ${
-                            entry.estimatedEarnings < 0
-                              ? 'text-red-600 dark:text-red-400'
-                              : entry.estimatedEarnings > 0
-                              ? getToneTextClass(info.tone)
-                              : 'text-[#77827B] dark:text-[#929B95]'
-                          }`}
+              {/* Mobile auto-sized table (no horizontal scroll, zero clipped currency) */}
+              <div className="sm:hidden">
+                <table className="w-full table-auto border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-[#D7E0DA] dark:border-white/[0.08] text-[10.5px] min-[360px]:text-[11px] font-semibold text-[#77827B] dark:text-[#929B95]">
+                      <th className="py-2 pr-1.5">Tarih & Tür</th>
+                      <th className="w-[1%] whitespace-nowrap py-2 px-1.5 text-right">Süre</th>
+                      <th className="w-[1%] whitespace-nowrap py-2 pl-1.5 text-right">Kazanç</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#D7E0DA] dark:divide-white/[0.06]">
+                    {monthEntriesSorted.map((entry) => {
+                      const info = getEntryTypeSummary(
+                        entry,
+                        overtimeMultiplier,
+                        weekendMultiplier
+                      );
+                      const isLeaveEntry =
+                        entry.workType === 'paid_leave' || entry.workType === 'unpaid_leave';
+                      return (
+                        <tr
+                          key={entry.id}
+                          onClick={() => onEditEntry?.(entry)}
+                          className={
+                            onEditEntry
+                              ? 'cursor-pointer active:bg-[#EEF2EF]/80 dark:active:bg-[#222925]/80 transition-colors'
+                              : ''
+                          }
                         >
-                          {entry.estimatedEarnings !== 0
-                            ? `${entry.estimatedEarnings > 0 ? '+' : ''}${formatCurrency(
-                                entry.estimatedEarnings,
-                                currency
-                              )}`
-                            : isLeaveEntry
-                            ? 'Ücretli İzin'
-                            : 'Normal'}
-                        </p>
-                        {!isLeaveEntry && (
-                          <p className="font-mono text-[11px] text-[#77827B] dark:text-[#929B95] tabular-nums">
-                            {formatDuration(entry.calculatedDurationMinutes)}
-                          </p>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
+                          <td className="py-2.5 pr-1.5 align-middle max-w-0 w-full">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span
+                                className={`w-2 h-2 rounded-full shrink-0 ${getToneDotClass(
+                                  info.tone
+                                )}`}
+                              />
+                              <span className="text-[12.5px] min-[360px]:text-[13px] font-semibold text-[#2A302D] dark:text-[#F5F3EE] truncate">
+                                {formatTurkishDate(entry.date)}
+                              </span>
+                            </div>
+                            <p className="pl-3.5 mt-0.5 text-[11px] text-[#77827B] dark:text-[#929B95] truncate">
+                              {info.label}
+                              {entry.notes ? ` · ${entry.notes}` : ''}
+                            </p>
+                          </td>
+
+                          <td className="w-[1%] whitespace-nowrap py-2.5 px-1.5 text-right align-middle font-sans text-[11px] min-[360px]:text-xs text-[#77827B] dark:text-[#929B95] tabular-nums">
+                            {isLeaveEntry ? '—' : formatDuration(entry.calculatedDurationMinutes)}
+                          </td>
+
+                          <td
+                            className={`w-[1%] whitespace-nowrap py-2.5 pl-1.5 text-right align-middle font-sans text-[12px] min-[360px]:text-[13px] font-bold tabular-nums ${
+                              entry.estimatedEarnings < 0
+                                ? 'text-red-600 dark:text-red-400'
+                                : entry.estimatedEarnings > 0
+                                ? getToneTextClass(info.tone)
+                                : 'text-[#77827B] dark:text-[#929B95]'
+                            }`}
+                          >
+                            {entry.estimatedEarnings !== 0
+                              ? `${entry.estimatedEarnings > 0 ? '+' : ''}${formatCurrency(
+                                  entry.estimatedEarnings,
+                                  currency
+                                )}`
+                              : isLeaveEntry
+                              ? 'İzin'
+                              : 'Normal'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
 
               {/* Desktop Structured Table */}

@@ -6,6 +6,10 @@ import {
   getAppRuntimeInfo,
 } from '../services/androidUpdateService';
 import {
+  saveNativeAlarmConfig,
+  syncNativeRecordedDates,
+} from '../native/mesaiAlarm';
+import {
   loadEntriesSync,
   loadSettingsSync,
   storageService,
@@ -91,6 +95,18 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       active = false;
     };
   }, []);
+
+  const initialAlarmSyncedRef = useRef(false);
+
+  useEffect(() => {
+    if (isHydrating) return;
+    const uniqueDates = Array.from(new Set(entries.map((e) => e.date)));
+    void syncNativeRecordedDates(uniqueDates);
+    if (!initialAlarmSyncedRef.current && settings.alarm) {
+      initialAlarmSyncedRef.current = true;
+      void saveNativeAlarmConfig(settings.alarm, uniqueDates);
+    }
+  }, [entries, isHydrating, settings.alarm]);
 
   const checkForUpdates = useCallback(async (silent = false): Promise<UpdateCheckResult> => {
     setIsCheckingUpdate(true);
@@ -239,7 +255,15 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const restoreBackup = useCallback(
     async (newSettings: UserSettings, newEntries: WorkEntry[]) => {
-      const cleanSettings = { ...DEFAULT_SETTINGS, ...newSettings, onboardingCompleted: true };
+      const cleanSettings: UserSettings = {
+        ...DEFAULT_SETTINGS,
+        ...newSettings,
+        alarm: {
+          ...DEFAULT_SETTINGS.alarm!,
+          ...(newSettings.alarm ?? {}),
+        },
+        onboardingCompleted: true,
+      };
       const recalculated = recalculateAllEntries(newEntries, cleanSettings);
       setSettings(cleanSettings);
       setEntries(recalculated);
@@ -247,6 +271,11 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         storageService.saveSettings(cleanSettings),
         storageService.saveEntries(recalculated),
       ]);
+      const dates = Array.from(new Set(recalculated.map((e) => e.date)));
+      await syncNativeRecordedDates(dates);
+      if (cleanSettings.alarm) {
+        await saveNativeAlarmConfig(cleanSettings.alarm, dates);
+      }
     },
     []
   );
@@ -255,6 +284,8 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await storageService.clearAll();
     setSettings({ ...DEFAULT_SETTINGS });
     setEntries([]);
+    await syncNativeRecordedDates([]);
+    await saveNativeAlarmConfig(DEFAULT_SETTINGS.alarm!, []);
   }, []);
 
   return (

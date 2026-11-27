@@ -14,6 +14,13 @@ export type WorkType =
   | 'paid_leave'
   | 'unpaid_leave';
 
+export interface MesaiAlarmSettings {
+  enabled: boolean;
+  hour: number;
+  minute: number;
+  daysOfWeek: number[]; // ISO weekdays: 1 = Pzt ... 7 = Paz
+}
+
 export interface UserSettings {
   userName: string;
   monthlySalary: number;
@@ -31,6 +38,7 @@ export interface UserSettings {
   overtimeCalculationMode: OvertimeCalculationMode;
   themeMode: ThemeMode;
   onboardingCompleted: boolean;
+  alarm?: MesaiAlarmSettings;
 }
 
 export interface WorkEntry {

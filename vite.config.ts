@@ -8,8 +8,8 @@ const pkg = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')
 ) as { version?: string };
 
-const appVersion = process.env.ANDROID_VERSION_NAME || pkg.version || '1.0.4';
-const appVersionCode = Number(process.env.ANDROID_VERSION_CODE || 10004);
+const appVersion = process.env.ANDROID_VERSION_NAME || pkg.version || '1.0.6';
+const appVersionCode = Number(process.env.ANDROID_VERSION_CODE || 10006);
 const distributionChannel =
   process.env.VITE_DISTRIBUTION_CHANNEL === 'play' ? 'play' : 'direct';
 

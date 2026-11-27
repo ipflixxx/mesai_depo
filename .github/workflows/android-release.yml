@@ -7,11 +7,11 @@ on:
   workflow_dispatch:
     inputs:
       version_name:
-        description: 'Uygulama Sürümü (örn: 1.0.4)'
+        description: 'Uygulama Sürümü (örn: 1.0.6)'
         required: true
         type: string
       version_code:
-        description: 'Android versionCode (örn: 10004)'
+        description: 'Android versionCode (örn: 10006)'
         required: true
         type: string
       mandatory:

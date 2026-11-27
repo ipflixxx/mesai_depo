@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(MesaiUpdaterPlugin.class);
+        registerPlugin(MesaiAlarmPlugin.class);
         super.onCreate(savedInstanceState);
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {

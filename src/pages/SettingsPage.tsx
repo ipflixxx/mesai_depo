@@ -12,6 +12,7 @@ import {
   Sun,
   Upload,
 } from 'lucide-react';
+import { MesaiAlarmSection } from '../components/MesaiAlarmSection';
 import { MesaiWordmark } from '../components/MesaiWordmark';
 import { NumericInput, parseLocaleNumber } from '../components/NumericInput';
 import { useMesai } from '../context/MesaiContext';
@@ -125,6 +126,7 @@ export const SettingsPage: React.FC = () => {
     await updateSettings({
       ...form,
       themeMode: settings.themeMode,
+      alarm: settings.alarm,
       monthlySalary: parsedSalary,
       paymentDay: parsedPayDay,
       weeklyWorkDays: parsedDays,
@@ -216,6 +218,8 @@ export const SettingsPage: React.FC = () => {
           Maaş, çalışma düzeni, görünüm ve veri yedekleme tercihlerin
         </p>
       </header>
+
+      <MesaiAlarmSection />
 
       <form onSubmit={handleSaveProfileAndWork} className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

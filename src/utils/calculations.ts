@@ -41,6 +41,12 @@ export const DEFAULT_SETTINGS: UserSettings = {
   overtimeCalculationMode: 'daily',
   themeMode: 'dark',
   onboardingCompleted: false,
+  alarm: {
+    enabled: false,
+    hour: 18,
+    minute: 0,
+    daysOfWeek: [1, 2, 3, 4, 5],
+  },
 };
 
 export function getTodayDateString(): string {

@@ -102,7 +102,18 @@ function lsSet<T>(key: string, value: T): void {
 
 export function loadSettingsSync(): UserSettings {
   const saved = lsGet<Partial<UserSettings>>(SETTINGS_KEY);
-  return saved ? { ...DEFAULT_SETTINGS, ...saved } : { ...DEFAULT_SETTINGS };
+  return {
+    ...DEFAULT_SETTINGS,
+    ...(saved ?? {}),
+    alarm: {
+      enabled: saved?.alarm?.enabled ?? DEFAULT_SETTINGS.alarm!.enabled,
+      hour: saved?.alarm?.hour ?? DEFAULT_SETTINGS.alarm!.hour,
+      minute: saved?.alarm?.minute ?? DEFAULT_SETTINGS.alarm!.minute,
+      daysOfWeek: Array.isArray(saved?.alarm?.daysOfWeek)
+        ? saved.alarm.daysOfWeek
+        : DEFAULT_SETTINGS.alarm!.daysOfWeek,
+    },
+  };
 }
 
 export function loadEntriesSync(): WorkEntry[] {
@@ -119,10 +130,19 @@ class LocalHybridStorageRepository implements StorageRepository {
 
     const lsSettings = lsGet<Partial<UserSettings>>(SETTINGS_KEY);
     const lsEntries = lsGet<WorkEntry[]>(ENTRIES_KEY);
+    const chosenSettings = idbSettings ?? lsSettings ?? {};
 
     const mergedSettings: UserSettings = {
       ...DEFAULT_SETTINGS,
-      ...(idbSettings ?? lsSettings ?? {}),
+      ...chosenSettings,
+      alarm: {
+        enabled: chosenSettings.alarm?.enabled ?? DEFAULT_SETTINGS.alarm!.enabled,
+        hour: chosenSettings.alarm?.hour ?? DEFAULT_SETTINGS.alarm!.hour,
+        minute: chosenSettings.alarm?.minute ?? DEFAULT_SETTINGS.alarm!.minute,
+        daysOfWeek: Array.isArray(chosenSettings.alarm?.daysOfWeek)
+          ? chosenSettings.alarm.daysOfWeek
+          : DEFAULT_SETTINGS.alarm!.daysOfWeek,
+      },
     };
 
     const resolvedEntries: WorkEntry[] = Array.isArray(idbEntries)

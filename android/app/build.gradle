@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
-def resolvedVersionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "10004").toInteger()
-def resolvedVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "1.0.4"
+def resolvedVersionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "10006").toInteger()
+def resolvedVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "1.0.6"
 
 android {
     namespace = "com.mesai.app"
