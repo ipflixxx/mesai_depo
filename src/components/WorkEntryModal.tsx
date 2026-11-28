@@ -1,16 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Calendar, ChevronDown, Minus, Plus, Trash2, X } from 'lucide-react';
 import { useMesai } from '../context/MesaiContext';
+import { formatTemplate } from '../i18n';
 import { adService } from '../services/adService';
 import { WorkEntryInput, WorkType } from '../types/mesai';
 import { NumericInput, parseLocaleNumber } from './NumericInput';
 import {
-  WORK_TYPE_LABELS,
   calculateEntryPreview,
   detectEntryOverlaps,
   formatCurrency,
   formatDuration,
   getTodayDateString,
+  getWorkTypeLabel,
   timeToMinutes,
 } from '../utils/calculations';
 
@@ -32,6 +33,8 @@ export const WorkEntryModal: React.FC = () => {
     addEntry,
     updateEntry,
     requestDeleteEntry,
+    language,
+    t,
   } = useMesai();
 
   const { isOpen, editingEntry, defaultDate } = modalState;
@@ -156,13 +159,13 @@ export const WorkEntryModal: React.FC = () => {
   );
 
   const preview = useMemo(
-    () => calculateEntryPreview(inputPayload, settings, entries),
-    [inputPayload, settings, entries]
+    () => calculateEntryPreview(inputPayload, settings, entries, language),
+    [inputPayload, settings, entries, language]
   );
 
   const overlaps = useMemo(
-    () => (useTimeRange ? detectEntryOverlaps(inputPayload, entries) : []),
-    [useTimeRange, inputPayload, entries]
+    () => (useTimeRange ? detectEntryOverlaps(inputPayload, entries, language) : []),
+    [useTimeRange, inputPayload, entries, language]
   );
 
   if (!isOpen) return null;
@@ -207,18 +210,18 @@ export const WorkEntryModal: React.FC = () => {
     e.preventDefault();
     if (isSubmitting) return;
     if (!date) {
-      setSubmitError('Lütfen bir tarih seçin.');
+      setSubmitError(t.entryModal.errSelectDate);
       return;
     }
     if (!useTimeRange && !isLeave) {
       const parsed = parseLocaleNumber(hoursInput);
       if (parsed === null || parsed <= 0 || parsed > 24) {
-        setSubmitError('Lütfen 0,5 ile 24 saat arasında bir süre girin.');
+        setSubmitError(t.entryModal.errHoursRange);
         return;
       }
     }
     if (!preview.isValid) {
-      setSubmitError(preview.validationError || 'Lütfen geçerli bir süre girin.');
+      setSubmitError(preview.validationError || t.entryModal.invalidDuration);
       return;
     }
 
@@ -233,7 +236,7 @@ export const WorkEntryModal: React.FC = () => {
       }
       closeEntryModal();
     } catch {
-      setSubmitError('Kayıt sırasında bir sorun oluştu. Lütfen tekrar deneyin.');
+      setSubmitError(t.entryModal.errGenericSave);
       return;
     } finally {
       setIsSubmitting(false);
@@ -266,22 +269,23 @@ export const WorkEntryModal: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#D7E0DA] dark:border-white/[0.06]">
           <h2 className="text-base font-bold text-[#17221B] dark:text-[#F4F7F5]">
-            {editingEntry ? 'Kaydı Düzenle' : 'Mesai Ekle'}
+            {editingEntry ? t.entryModal.editTitle : t.entryModal.addTitle}
           </h2>
 
           <div className="flex items-center gap-2">
             <input
               type="date"
+              dir="ltr"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              aria-label="Tarih"
+              aria-label={t.entryModal.dateAria}
               className="min-h-[36px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 font-mono text-xs text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
             />
             <button
               type="button"
               onClick={closeEntryModal}
               className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl text-[#77827B] dark:text-[#929B95] hover:bg-[#EEF2EF] dark:hover:bg-[#222925]"
-              aria-label="Kapat"
+              aria-label={t.common.close}
             >
               <X className="w-5 h-5" />
             </button>
@@ -294,10 +298,10 @@ export const WorkEntryModal: React.FC = () => {
           <div className="grid grid-cols-2 gap-2">
             {(
               [
-                { id: 'overtime', label: 'Fazla Mesai' },
-                { id: 'normal', label: 'Normal Mesai' },
-                { id: 'weekend', label: 'Hafta Sonu / Tatil' },
-                { id: 'leave', label: 'İzin' },
+                { id: 'overtime', label: t.entryModal.catOvertime },
+                { id: 'normal', label: t.entryModal.catNormal },
+                { id: 'weekend', label: t.entryModal.catWeekend },
+                { id: 'leave', label: t.entryModal.catLeave },
               ] as const
             ).map((item) => {
               const active = activeCategory === item.id;
@@ -330,7 +334,7 @@ export const WorkEntryModal: React.FC = () => {
                     : 'text-[#77827B] dark:text-[#929B95]'
                 }`}
               >
-                Hafta sonu
+                {t.entryModal.subWeekend}
               </button>
               <button
                 type="button"
@@ -341,7 +345,7 @@ export const WorkEntryModal: React.FC = () => {
                     : 'text-[#77827B] dark:text-[#929B95]'
                 }`}
               >
-                Resmî tatil
+                {t.entryModal.subHoliday}
               </button>
             </div>
           )}
@@ -357,7 +361,7 @@ export const WorkEntryModal: React.FC = () => {
                     : 'text-[#77827B] dark:text-[#929B95]'
                 }`}
               >
-                Ücretli izin
+                {t.entryModal.subPaidLeave}
               </button>
               <button
                 type="button"
@@ -368,7 +372,7 @@ export const WorkEntryModal: React.FC = () => {
                     : 'text-[#77827B] dark:text-[#929B95]'
                 }`}
               >
-                Ücretsiz izin
+                {t.entryModal.subUnpaidLeave}
               </button>
             </div>
           )}
@@ -380,14 +384,14 @@ export const WorkEntryModal: React.FC = () => {
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-medium text-[#77827B] dark:text-[#929B95]">
-                      Kaç saat?
+                      {t.entryModal.howManyHours}
                     </label>
                     <button
                       type="button"
                       onClick={() => setUseTimeRange(true)}
                       className="text-xs font-medium text-[#159B61] dark:text-[#39D98A] flex items-center gap-1"
                     >
-                      <span>Saat aralığı gir</span>
+                      <span>{t.entryModal.enterTimeRange}</span>
                       <ChevronDown className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -397,7 +401,7 @@ export const WorkEntryModal: React.FC = () => {
                       type="button"
                       onClick={() => adjustHours(-0.5)}
                       disabled={parsedHoursValue <= 0.5}
-                      aria-label="Saati yarım saat azalt"
+                      aria-label={t.entryModal.decreaseHalfHourAria}
                       className="min-h-[44px] min-w-[48px] flex items-center justify-center rounded-xl bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5] border border-[#C8D3CD] dark:border-white/[0.08] active:scale-95 transition-transform disabled:opacity-35"
                     >
                       <Minus className="w-4 h-4 stroke-[2.5]" />
@@ -406,7 +410,7 @@ export const WorkEntryModal: React.FC = () => {
                     <div className="flex-1 flex items-center justify-center gap-1.5 px-2">
                       <NumericInput
                         allowDecimal
-                        aria-label="Mesai saati"
+                        aria-label={t.entryModal.hoursAria}
                         value={hoursInput}
                         onChange={(val) => {
                           setSubmitError(null);
@@ -416,7 +420,7 @@ export const WorkEntryModal: React.FC = () => {
                         className="w-16 bg-transparent text-center font-mono text-xl font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums focus:outline-none"
                       />
                       <span className="text-xs font-medium text-[#77827B] dark:text-[#929B95] select-none">
-                        saat
+                        {t.common.hourFull}
                       </span>
                     </div>
 
@@ -424,7 +428,7 @@ export const WorkEntryModal: React.FC = () => {
                       type="button"
                       onClick={() => adjustHours(0.5)}
                       disabled={parsedHoursValue >= 24}
-                      aria-label="Saati yarım saat artır"
+                      aria-label={t.entryModal.increaseHalfHourAria}
                       className="min-h-[44px] min-w-[48px] flex items-center justify-center rounded-xl bg-[#FFFFFF] dark:bg-[#191E1B] text-[#17221B] dark:text-[#F4F7F5] border border-[#C8D3CD] dark:border-white/[0.08] active:scale-95 transition-transform disabled:opacity-35"
                     >
                       <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -445,7 +449,7 @@ export const WorkEntryModal: React.FC = () => {
                               : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                           }`}
                         >
-                          {h} saat
+                          {formatTemplate(t.entryModal.quickHourChip, { h })}
                         </button>
                       );
                     })}
@@ -455,24 +459,25 @@ export const WorkEntryModal: React.FC = () => {
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-medium text-[#77827B] dark:text-[#929B95]">
-                      Saat aralığı
+                      {t.entryModal.timeRangeLabel}
                     </label>
                     <button
                       type="button"
                       onClick={() => setUseTimeRange(false)}
                       className="text-xs font-medium text-[#159B61] dark:text-[#39D98A]"
                     >
-                      Sadece saat gir
+                      {t.entryModal.enterHoursOnly}
                     </button>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="block text-[11px] text-[#77827B] dark:text-[#929B95] mb-1">
-                        Başlangıç
+                        {t.entryModal.startTime}
                       </label>
                       <input
                         type="time"
+                        dir="ltr"
                         value={startTime}
                         onChange={(e) => setStartTime(e.target.value)}
                         className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
@@ -480,10 +485,11 @@ export const WorkEntryModal: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-[11px] text-[#77827B] dark:text-[#929B95] mb-1">
-                        Bitiş
+                        {t.entryModal.endTime}
                       </label>
                       <input
                         type="time"
+                        dir="ltr"
                         value={endTime}
                         onChange={(e) => setEndTime(e.target.value)}
                         className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
@@ -491,7 +497,7 @@ export const WorkEntryModal: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-[11px] text-[#77827B] dark:text-[#929B95] mb-1">
-                        Mola (dk)
+                        {t.entryModal.breakMinutes}
                       </label>
                       <NumericInput
                         value={breakMinutesInput}
@@ -507,7 +513,7 @@ export const WorkEntryModal: React.FC = () => {
               {/* %50 / %100 Seçimi */}
               <div>
                 <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Mesai oranı
+                  {t.entryModal.overtimeRateLabel}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -519,8 +525,12 @@ export const WorkEntryModal: React.FC = () => {
                         : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                     }`}
                   >
-                    <span className="font-mono font-bold">%50</span>
-                    <span className="text-xs opacity-80">(1.5x)</span>
+                    <span dir="ltr" className="font-mono font-bold">
+                      {language === 'tr' ? '%50' : '50%'}
+                    </span>
+                    <span dir="ltr" className="text-xs opacity-80">
+                      (1.5x)
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -531,8 +541,12 @@ export const WorkEntryModal: React.FC = () => {
                         : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                     }`}
                   >
-                    <span className="font-mono font-bold">%100</span>
-                    <span className="text-xs opacity-80">(2.0x)</span>
+                    <span dir="ltr" className="font-mono font-bold">
+                      {language === 'tr' ? '%100' : '100%'}
+                    </span>
+                    <span dir="ltr" className="text-xs opacity-80">
+                      (2.0x)
+                    </span>
                   </button>
                 </div>
               </div>
@@ -546,14 +560,14 @@ export const WorkEntryModal: React.FC = () => {
               onClick={() => setShowNotes(true)}
               className="text-xs font-medium text-[#77827B] dark:text-[#929B95] hover:text-[#17221B] dark:hover:text-[#F4F7F5]"
             >
-              + Not ekle (isteğe bağlı)
+              {t.entryModal.addNoteToggle}
             </button>
           ) : (
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Not (ör. akşam mesaisi)"
+              placeholder={t.entryModal.notePlaceholder}
               className="w-full min-h-[42px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 text-sm text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
             />
           )}
@@ -561,7 +575,7 @@ export const WorkEntryModal: React.FC = () => {
           {preview.isPlanned && (
             <div className="flex items-center gap-2 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 py-2 text-xs text-[#77827B] dark:text-[#929B95]">
               <Calendar className="w-3.5 h-3.5 shrink-0" />
-              <span>Gelecek tarihli kayıtlar planlı olarak saklanır.</span>
+              <span>{t.entryModal.plannedNotice}</span>
             </div>
           )}
 
@@ -577,15 +591,22 @@ export const WorkEntryModal: React.FC = () => {
             <div className="text-xs text-[#77827B] dark:text-[#929B95]">
               {preview.isValid
                 ? isLeave
-                  ? WORK_TYPE_LABELS[workType]
-                  : `${formatDuration(preview.netMinutes)} · %${overtimeRatePercent}`
-                : 'Geçersiz süre'}
+                  ? getWorkTypeLabel(workType, language)
+                  : `${formatDuration(preview.netMinutes, language)} · ${
+                      language === 'tr' ? `%${overtimeRatePercent}` : `${overtimeRatePercent}%`
+                    }`
+                : t.entryModal.invalidDuration}
             </div>
-            <div className="font-mono text-lg font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums">
+            <div
+              dir="ltr"
+              className="font-mono text-lg font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums"
+            >
               {preview.isValid
                 ? `${preview.estimatedEarnings > 0 ? '+' : ''}${formatCurrency(
                     preview.estimatedEarnings,
-                    settings.currency
+                    settings.currency,
+                    0,
+                    language
                   )}`
                 : '—'}
             </div>
@@ -606,7 +627,7 @@ export const WorkEntryModal: React.FC = () => {
                 className="min-h-[48px] px-4 rounded-2xl text-sm font-medium flex items-center justify-center gap-1.5 transition-colors bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-red-600 dark:text-red-400 hover:bg-red-500/10"
               >
                 <Trash2 className="w-4 h-4" />
-                <span>Sil</span>
+                <span>{t.common.delete}</span>
               </button>
             )}
             <button
@@ -614,7 +635,7 @@ export const WorkEntryModal: React.FC = () => {
               disabled={!preview.isValid}
               className="flex-1 min-h-[48px] rounded-2xl bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211] font-semibold text-sm disabled:opacity-40 transition-transform active:scale-[0.98]"
             >
-              {editingEntry ? 'Güncelle' : 'Kaydet'}
+              {editingEntry ? t.common.update : t.common.save}
             </button>
           </div>
         </form>

@@ -1,11 +1,12 @@
+import { AppLanguage, formatTemplate, getLanguageMeta, getTranslations, resolveLanguage } from '../i18n';
 import { isNativeAndroidPlatform, MesaiUpdater } from '../native/mesaiUpdater';
 import { BackupPayload, UserSettings, WorkEntry } from '../types/mesai';
 import {
-  WORK_TYPE_LABELS,
   calculateHourlyRate,
   formatCurrency,
   formatDuration,
   formatMonthYear,
+  getWorkTypeLabel,
   summarizeEntries,
 } from './calculations';
 
@@ -47,20 +48,14 @@ function triggerDownload(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function exportEntriesToCSV(entries: WorkEntry[], settings: UserSettings) {
-  const headers = [
-    'Tarih',
-    'Başlangıç',
-    'Bitiş',
-    'Mola (dk)',
-    'Çalışma Türü',
-    'Net Süre (dk)',
-    'Fazla Mesai (dk)',
-    'Tahmini Ek Kazanç',
-    'Para Birimi',
-    'Durum',
-    'Açıklama',
-  ];
+export function exportEntriesToCSV(
+  entries: WorkEntry[],
+  settings: UserSettings,
+  lang?: AppLanguage
+) {
+  const activeLang = lang ?? resolveLanguage(settings.language);
+  const t = getTranslations(activeLang);
+  const headers = [...t.export.csvHeaders];
 
   const escapeCsv = (val: string | number) => {
     const str = String(val ?? '');
@@ -77,12 +72,12 @@ export function exportEntriesToCSV(entries: WorkEntry[], settings: UserSettings)
       e.startTime,
       e.endTime,
       e.breakMinutes,
-      WORK_TYPE_LABELS[e.workType],
+      getWorkTypeLabel(e.workType, activeLang),
       e.calculatedDurationMinutes,
       e.overtimeDurationMinutes,
       e.estimatedEarnings.toFixed(2),
       settings.currency,
-      e.isPlanned ? 'Planlı' : 'Gerçekleşti',
+      e.isPlanned ? t.common.planned : t.common.realized,
       e.notes,
     ]);
 
@@ -91,7 +86,7 @@ export function exportEntriesToCSV(entries: WorkEntry[], settings: UserSettings)
     [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\r\n');
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  triggerDownload(blob, `mesai-kayitlar-${new Date().toISOString().slice(0, 10)}.csv`);
+  triggerDownload(blob, `mesai-records-${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
 export function exportJSONBackup(settings: UserSettings, entries: WorkEntry[]) {
@@ -105,21 +100,25 @@ export function exportJSONBackup(settings: UserSettings, entries: WorkEntry[]) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: 'application/json;charset=utf-8',
   });
-  triggerDownload(blob, `mesai-yedek-${new Date().toISOString().slice(0, 10)}.json`);
+  triggerDownload(blob, `mesai-backup-${new Date().toISOString().slice(0, 10)}.json`);
 }
 
-export function parseAndValidateBackup(jsonText: string): {
+export function parseAndValidateBackup(
+  jsonText: string,
+  lang: AppLanguage = 'tr'
+): {
   settings: UserSettings;
   entries: WorkEntry[];
 } {
+  const t = getTranslations(lang);
   const parsed = JSON.parse(jsonText) as Partial<BackupPayload>;
   if (!parsed || parsed.app !== 'MESAI' || !parsed.settings || !Array.isArray(parsed.entries)) {
-    throw new Error('Geçersiz yedek dosyası biçimi.');
+    throw new Error(t.export.errInvalidBackup);
   }
 
   const s = parsed.settings;
   if (typeof s.monthlySalary !== 'number' || typeof s.dailyWorkHours !== 'number') {
-    throw new Error('Yedek dosyasındaki kullanıcı ayarları eksik veya bozuk.');
+    throw new Error(t.export.errCorruptBackupSettings);
   }
 
   const validEntries: WorkEntry[] = parsed.entries.filter(
@@ -141,8 +140,13 @@ export function exportMonthlyPDFReport(
   entries: WorkEntry[],
   settings: UserSettings,
   year: number,
-  monthZeroIndexed: number
+  monthZeroIndexed: number,
+  lang?: AppLanguage
 ) {
+  const activeLang = lang ?? resolveLanguage(settings.language);
+  const t = getTranslations(activeLang);
+  const isRtl = getLanguageMeta(activeLang).dir === 'rtl';
+
   const monthPrefix = `${year}-${String(monthZeroIndexed + 1).padStart(2, '0')}`;
   const monthEntries = entries
     .filter((e) => e.date.startsWith(monthPrefix))
@@ -151,7 +155,7 @@ export function exportMonthlyPDFReport(
   const summary = summarizeEntries(monthEntries);
   const hourlyRate = calculateHourlyRate(settings);
   const estimatedTotal = settings.monthlySalary + summary.totalExtraEarnings;
-  const periodTitle = formatMonthYear(year, monthZeroIndexed);
+  const periodTitle = formatMonthYear(year, monthZeroIndexed, activeLang);
 
   // A4 aspect ratio at high clarity (1240 x 1754)
   const width = 1240;
@@ -162,6 +166,8 @@ export function exportMonthlyPDFReport(
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
+  ctx.direction = isRtl ? 'rtl' : 'ltr';
+
   // Background
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, width, height);
@@ -170,40 +176,53 @@ export function exportMonthlyPDFReport(
   ctx.fillStyle = '#101211';
   ctx.fillRect(0, 0, width, 180);
 
+  ctx.textAlign = 'left';
   ctx.fillStyle = '#39D98A';
   ctx.font = 'bold 42px "Plus Jakarta Sans", sans-serif';
   ctx.fillText('MESAİ', 72, 82);
 
   ctx.fillStyle = '#929B95';
   ctx.font = '22px "DM Sans", sans-serif';
-  ctx.fillText('Zamanını takip et, emeğinin karşılığını gör.', 72, 122);
+  ctx.fillText(t.export.pdfTagline, 72, 122);
 
   ctx.fillStyle = '#F4F7F5';
   ctx.textAlign = 'right';
   ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText(`${periodTitle} Raporu`, width - 72, 82);
+  ctx.fillText(formatTemplate(t.export.pdfReportTitle, { period: periodTitle }), width - 72, 82);
   ctx.fillStyle = '#929B95';
   ctx.font = '20px "DM Sans", sans-serif';
-  ctx.fillText(settings.userName ? `Hazırlanan: ${settings.userName}` : 'Kişisel Kazanç Özeti', width - 72, 120);
-  ctx.textAlign = 'left';
+  ctx.fillText(
+    settings.userName
+      ? formatTemplate(t.export.pdfPreparedFor, { name: settings.userName })
+      : t.export.pdfPersonalSummary,
+    width - 72,
+    120
+  );
+  ctx.textAlign = isRtl ? 'right' : 'left';
 
   // Summary cards strip
   const cardY = 230;
   const cards = [
     {
-      label: 'Tahmini Toplam Kazanç',
-      value: formatCurrency(estimatedTotal, settings.currency),
-      sub: `Sabit: ${formatCurrency(settings.monthlySalary, settings.currency)}`,
+      label: t.export.pdfTotalEarnings,
+      value: formatCurrency(estimatedTotal, settings.currency, 0, activeLang),
+      sub: formatTemplate(t.export.pdfFixedSub, {
+        amount: formatCurrency(settings.monthlySalary, settings.currency, 0, activeLang),
+      }),
     },
     {
-      label: 'Ek Mesai & Tatil Kazancı',
-      value: formatCurrency(summary.totalExtraEarnings, settings.currency),
-      sub: `Saatlik: ${formatCurrency(hourlyRate, settings.currency, 2)}`,
+      label: t.export.pdfExtraEarnings,
+      value: formatCurrency(summary.totalExtraEarnings, settings.currency, 0, activeLang),
+      sub: formatTemplate(t.export.pdfHourlySub, {
+        amount: formatCurrency(hourlyRate, settings.currency, 2, activeLang),
+      }),
     },
     {
-      label: 'Toplam Çalışma / Fazla Mesai',
-      value: formatDuration(summary.totalMinutes),
-      sub: `Fazla mesai: ${formatDuration(summary.overtimeMinutes)}`,
+      label: t.export.pdfTotalAndOvertime,
+      value: formatDuration(summary.totalMinutes, activeLang),
+      sub: formatTemplate(t.export.pdfOvertimeSub, {
+        duration: formatDuration(summary.overtimeMinutes, activeLang),
+      }),
     },
   ];
 
@@ -218,38 +237,43 @@ export function exportMonthlyPDFReport(
     ctx.fill();
     ctx.stroke();
 
+    const textX = isRtl ? x + cardW - 24 : x + 24;
+    ctx.textAlign = isRtl ? 'right' : 'left';
+
     ctx.fillStyle = '#77827B';
     ctx.font = '600 18px "DM Sans", sans-serif';
-    ctx.fillText(c.label, x + 24, cardY + 40);
+    ctx.fillText(c.label, textX, cardY + 40, cardW - 48);
 
     ctx.fillStyle = '#17221B';
     ctx.font = 'bold 30px "Plus Jakarta Sans", sans-serif';
-    ctx.fillText(c.value, x + 24, cardY + 86);
+    ctx.fillText(c.value, textX, cardY + 86, cardW - 48);
 
     ctx.fillStyle = '#159B61';
     ctx.font = '500 17px "DM Sans", sans-serif';
-    ctx.fillText(c.sub, x + 24, cardY + 120);
+    ctx.fillText(c.sub, textX, cardY + 120, cardW - 48);
   });
 
   // Table header
   let y = 435;
+  ctx.textAlign = isRtl ? 'right' : 'left';
   ctx.fillStyle = '#17221B';
   ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('Mesai Kayıtları', 72, y);
+  ctx.fillText(t.export.pdfRecordsTitle, isRtl ? width - 72 : 72, y);
 
   y += 28;
   ctx.fillStyle = '#EEF2EF';
   ctx.fillRect(72, y, width - 144, 48);
 
+  ctx.textAlign = 'left';
   ctx.fillStyle = '#17221B';
   ctx.font = 'bold 17px "DM Sans", sans-serif';
-  ctx.fillText('Tarih', 90, y + 30);
-  ctx.fillText('Saat', 250, y + 30);
-  ctx.fillText('Tür', 420, y + 30);
-  ctx.fillText('Net Süre', 640, y + 30);
-  ctx.fillText('Fazla Mesai', 800, y + 30);
+  ctx.fillText(t.export.pdfColDate, 90, y + 30);
+  ctx.fillText(t.export.pdfColTime, 250, y + 30);
+  ctx.fillText(t.export.pdfColType, 420, y + 30);
+  ctx.fillText(t.export.pdfColNet, 640, y + 30);
+  ctx.fillText(t.export.pdfColOvertime, 800, y + 30);
   ctx.textAlign = 'right';
-  ctx.fillText('Ek Kazanç', width - 90, y + 30);
+  ctx.fillText(t.export.pdfColExtra, width - 90, y + 30);
   ctx.textAlign = 'left';
 
   y += 48;
@@ -260,7 +284,8 @@ export function exportMonthlyPDFReport(
   if (visibleEntries.length === 0) {
     ctx.fillStyle = '#77827B';
     ctx.font = '20px "DM Sans", sans-serif';
-    ctx.fillText('Bu dönem için henüz mesai kaydı bulunmuyor.', 90, y + 54);
+    ctx.textAlign = isRtl ? 'right' : 'left';
+    ctx.fillText(t.export.pdfEmpty, isRtl ? width - 90 : 90, y + 54);
   } else {
     visibleEntries.forEach((e, idx) => {
       const rowY = y + idx * 48;
@@ -275,21 +300,30 @@ export function exportMonthlyPDFReport(
       ctx.lineTo(width - 72, rowY + 48);
       ctx.stroke();
 
+      ctx.textAlign = 'left';
       ctx.fillStyle = '#17221B';
       ctx.font = '18px "JetBrains Mono", monospace';
       ctx.fillText(e.date, 90, rowY + 30);
       ctx.fillText(`${e.startTime}-${e.endTime}`, 250, rowY + 30);
 
       ctx.font = '18px "DM Sans", sans-serif';
-      ctx.fillText(WORK_TYPE_LABELS[e.workType], 420, rowY + 30);
-      ctx.fillText(formatDuration(e.calculatedDurationMinutes), 640, rowY + 30);
-      ctx.fillText(e.overtimeDurationMinutes > 0 ? formatDuration(e.overtimeDurationMinutes) : '—', 800, rowY + 30);
+      ctx.fillText(getWorkTypeLabel(e.workType, activeLang), 420, rowY + 30, 200);
+      ctx.fillText(formatDuration(e.calculatedDurationMinutes, activeLang), 640, rowY + 30);
+      ctx.fillText(
+        e.overtimeDurationMinutes > 0
+          ? formatDuration(e.overtimeDurationMinutes, activeLang)
+          : '—',
+        800,
+        rowY + 30
+      );
 
       ctx.textAlign = 'right';
       ctx.fillStyle = e.isPlanned ? '#77827B' : '#159B61';
       ctx.font = 'bold 18px "JetBrains Mono", monospace';
       ctx.fillText(
-        e.isPlanned ? 'Planlı' : formatCurrency(e.estimatedEarnings, settings.currency),
+        e.isPlanned
+          ? t.common.planned
+          : formatCurrency(e.estimatedEarnings, settings.currency, 0, activeLang),
         width - 90,
         rowY + 30
       );
@@ -300,11 +334,10 @@ export function exportMonthlyPDFReport(
   // Footer note
   ctx.fillStyle = '#77827B';
   ctx.font = '16px "DM Sans", sans-serif';
+  ctx.textAlign = isRtl ? 'right' : 'left';
   const note =
-    settings.salaryType === 'gross'
-      ? 'Not: Hesaplamalar brüt maaş bazlı tahmini değerlerdir; vergi ve SGK kesintileri dahil değildir.'
-      : 'MESAİ kişisel takip raporu · Veriler yalnızca cihazınızda saklanır.';
-  ctx.fillText(note, 72, height - 64);
+    settings.salaryType === 'gross' ? t.export.pdfGrossNote : t.export.pdfPrivacyNote;
+  ctx.fillText(note, isRtl ? width - 72 : 72, height - 64);
 
   const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
   const base64 = dataUrl.split(',')[1];
@@ -315,7 +348,7 @@ export function exportMonthlyPDFReport(
   }
 
   const pdfBlob = wrapJpegInPdf(imgBytes, width, height);
-  triggerDownload(pdfBlob, `mesai-rapor-${monthPrefix}.pdf`);
+  triggerDownload(pdfBlob, `mesai-report-${monthPrefix}.pdf`);
 }
 
 function wrapJpegInPdf(jpegBytes: Uint8Array, imgW: number, imgH: number): Blob {

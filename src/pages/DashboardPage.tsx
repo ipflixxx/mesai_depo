@@ -5,6 +5,7 @@ import { MesaiWordmark } from '../components/MesaiWordmark';
 import { MonthlyCalendarGrid } from '../components/MonthlyCalendarGrid';
 import { useMesai } from '../context/MesaiContext';
 import { useResolvedDark } from '../hooks/useTheme';
+import { formatTemplate } from '../i18n';
 import {
   calculateHourlyRate,
   formatCurrency,
@@ -22,6 +23,8 @@ export const DashboardPage: React.FC = () => {
     openEditEntryModal,
     requestDeleteEntry,
     updateSettings,
+    language,
+    t,
   } = useMesai();
   const isDark = useResolvedDark(settings.themeMode);
 
@@ -35,7 +38,7 @@ export const DashboardPage: React.FC = () => {
     viewYear === now.getFullYear() && viewMonth === now.getMonth();
 
   const monthPrefix = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
-  const monthTitle = formatMonthYear(viewYear, viewMonth);
+  const monthTitle = formatMonthYear(viewYear, viewMonth, language);
 
   const monthEntries = useMemo(
     () => entries.filter((e) => e.date.startsWith(monthPrefix)),
@@ -84,6 +87,11 @@ export const DashboardPage: React.FC = () => {
   const estimatedMonthlyTotal = settings.monthlySalary + monthSummary.totalExtraEarnings;
   const hourlyRate = calculateHourlyRate(settings);
 
+  const extraSignedFormatted = `${
+    monthSummary.totalExtraEarnings > 0 ? '+' : ''
+  }${formatCurrency(monthSummary.totalExtraEarnings, settings.currency, 0, language)}`;
+  const overtimeDurationText = formatDuration(monthSummary.overtimeMinutes, language);
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Üst Karşılama Alanı */}
@@ -97,7 +105,9 @@ export const DashboardPage: React.FC = () => {
             </p>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-[#2A302D] dark:text-[#F5F3EE] tracking-tight truncate">
-            Merhaba{settings.userName ? `, ${settings.userName}` : ''}
+            {settings.userName
+              ? formatTemplate(t.dashboard.helloNamed, { name: settings.userName })
+              : t.dashboard.hello}
           </h1>
         </div>
 
@@ -105,8 +115,8 @@ export const DashboardPage: React.FC = () => {
           <button
             type="button"
             onClick={handleToggleTheme}
-            aria-label={isDark ? 'Açık temaya geç' : 'Karanlık temaya geç'}
-            title={isDark ? 'Açık tema' : 'Karanlık tema'}
+            aria-label={isDark ? t.dashboard.switchToLight : t.dashboard.switchToDark}
+            title={isDark ? t.dashboard.lightThemeTitle : t.dashboard.darkThemeTitle}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] text-[#2A302D] dark:text-[#F5F3EE] hover:bg-[#EEF2EF] dark:hover:bg-[#222925] active:scale-95 transition-all"
           >
             {isDark ? (
@@ -118,7 +128,7 @@ export const DashboardPage: React.FC = () => {
 
           <Link
             to="/ayarlar"
-            aria-label="Ayarlar"
+            aria-label={t.nav.settings}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] text-[#2A302D] dark:text-[#F5F3EE] hover:bg-[#EEF2EF] dark:hover:bg-[#222925] transition-colors"
           >
             <SettingsIcon className="w-[18px] h-[18px]" />
@@ -150,30 +160,40 @@ export const DashboardPage: React.FC = () => {
         <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1.5">
           <div className="min-w-0">
             <p className="text-[11px] sm:text-xs font-medium text-[#77827B] dark:text-[#929B95] truncate">
-              {isCurrentMonth ? 'Bu Ayki Toplam Kazancım' : `${monthTitle} Kazancı`}
+              {isCurrentMonth
+                ? t.dashboard.thisMonthEarnings
+                : formatTemplate(t.dashboard.periodEarnings, { month: monthTitle })}
               <span aria-hidden="true"> · </span>
-              <span>{settings.salaryType === 'gross' ? 'Brüt' : 'Net'}</span>
+              <span>{settings.salaryType === 'gross' ? t.common.gross : t.common.net}</span>
             </p>
-            <div className="mt-1 font-display font-extrabold text-[1.65rem] min-[360px]:text-[1.85rem] sm:text-[2.25rem] leading-none tracking-tight text-[#2A302D] dark:text-[#F5F3EE] tabular-nums whitespace-nowrap">
-              {formatCurrency(estimatedMonthlyTotal, settings.currency)}
+            <div
+              dir="ltr"
+              className="mt-1 inline-block font-display font-extrabold text-[1.65rem] min-[360px]:text-[1.85rem] sm:text-[2.25rem] leading-none tracking-tight text-[#2A302D] dark:text-[#F5F3EE] tabular-nums whitespace-nowrap"
+            >
+              {formatCurrency(estimatedMonthlyTotal, settings.currency, 0, language)}
             </div>
           </div>
 
-          <div className="text-right shrink-0 space-y-0.5 ml-auto">
+          <div className="text-end shrink-0 space-y-0.5 ms-auto">
             {monthSummary.totalExtraEarnings !== 0 ? (
               <p className="font-sans sm:font-mono text-xs sm:text-sm font-semibold text-[#159B61] dark:text-[#39D98A] tabular-nums whitespace-nowrap">
-                {monthSummary.totalExtraEarnings > 0 ? '+' : ''}
-                {formatCurrency(monthSummary.totalExtraEarnings, settings.currency)} ek
+                {formatTemplate(t.dashboard.extraAmount, { amount: extraSignedFormatted })}
               </p>
             ) : (
               <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">
-                Sabit maaş
+                {t.dashboard.fixedSalary}
               </p>
             )}
             <p className="font-sans sm:font-mono text-[11px] text-[#77827B] dark:text-[#929B95] tabular-nums whitespace-nowrap">
-              {monthSummary.overtimeMinutes > 0
-                ? `${formatDuration(monthSummary.overtimeMinutes)} mesai`
-                : formatCurrency(settings.monthlySalary, settings.currency)}
+              {monthSummary.overtimeMinutes > 0 ? (
+                formatTemplate(t.dashboard.overtimeMinutesLabel, {
+                  duration: overtimeDurationText,
+                })
+              ) : (
+                <span dir="ltr">
+                  {formatCurrency(settings.monthlySalary, settings.currency, 0, language)}
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -182,26 +202,35 @@ export const DashboardPage: React.FC = () => {
         <div className="mt-3.5 pt-3 border-t border-[#D7E0DA] dark:border-white/[0.06] grid grid-cols-3 gap-1.5 min-[360px]:gap-2.5 sm:gap-4">
           <div className="min-w-0">
             <p className="text-[10.5px] min-[360px]:text-[11px] text-[#77827B] dark:text-[#929B95] truncate">
-              Normal (1x)
+              {t.dashboard.rateNormal}
             </p>
-            <p className="mt-0.5 font-sans sm:font-mono text-[11.5px] min-[360px]:text-xs sm:text-sm font-semibold text-[#2A302D] dark:text-[#F5F3EE] tabular-nums whitespace-nowrap">
-              {formatCurrency(hourlyRate, settings.currency, 2)}
+            <p
+              dir="ltr"
+              className="mt-0.5 font-sans sm:font-mono text-[11.5px] min-[360px]:text-xs sm:text-sm font-semibold text-[#2A302D] dark:text-[#F5F3EE] tabular-nums whitespace-nowrap"
+            >
+              {formatCurrency(hourlyRate, settings.currency, 2, language)}
             </p>
           </div>
           <div className="min-w-0">
             <p className="text-[10.5px] min-[360px]:text-[11px] text-[#D97706] dark:text-[#F59E0B] font-medium truncate">
-              %50 (1.5x)
+              {t.dashboard.rate50}
             </p>
-            <p className="mt-0.5 font-sans sm:font-mono text-[11.5px] min-[360px]:text-xs sm:text-sm font-semibold text-[#D97706] dark:text-[#F59E0B] tabular-nums whitespace-nowrap">
-              {formatCurrency(hourlyRate * 1.5, settings.currency, 2)}
+            <p
+              dir="ltr"
+              className="mt-0.5 font-sans sm:font-mono text-[11.5px] min-[360px]:text-xs sm:text-sm font-semibold text-[#D97706] dark:text-[#F59E0B] tabular-nums whitespace-nowrap"
+            >
+              {formatCurrency(hourlyRate * 1.5, settings.currency, 2, language)}
             </p>
           </div>
           <div className="min-w-0">
             <p className="text-[10.5px] min-[360px]:text-[11px] text-[#7C3AED] dark:text-[#A78BFA] font-medium truncate">
-              %100 (2x)
+              {t.dashboard.rate100}
             </p>
-            <p className="mt-0.5 font-sans sm:font-mono text-[11.5px] min-[360px]:text-xs sm:text-sm font-semibold text-[#7C3AED] dark:text-[#A78BFA] tabular-nums whitespace-nowrap">
-              {formatCurrency(hourlyRate * 2, settings.currency, 2)}
+            <p
+              dir="ltr"
+              className="mt-0.5 font-sans sm:font-mono text-[11.5px] min-[360px]:text-xs sm:text-sm font-semibold text-[#7C3AED] dark:text-[#A78BFA] tabular-nums whitespace-nowrap"
+            >
+              {formatCurrency(hourlyRate * 2, settings.currency, 2, language)}
             </p>
           </div>
         </div>
@@ -211,55 +240,84 @@ export const DashboardPage: React.FC = () => {
       <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-6">
         <div className="flex items-center justify-between gap-3 mb-4">
           <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-            Son Kazanç Özeti
+            {t.dashboard.recentSummaryTitle}
           </h2>
           <Link
             to="/istatistik"
             className="text-xs font-semibold text-[#159B61] dark:text-[#39D98A] hover:opacity-80 whitespace-nowrap"
           >
-            Detaylı Analiz
+            {t.dashboard.detailedAnalysis}
           </Link>
         </div>
 
         <div className="divide-y divide-[#D7E0DA] dark:divide-white/[0.06] text-xs min-[360px]:text-[13px] sm:text-sm">
           <div className="py-2.5 flex items-center justify-between gap-3">
-            <span className="min-w-0 text-[#77827B] dark:text-[#929B95]">Aylık sabit maaş</span>
-            <span className="shrink-0 whitespace-nowrap font-sans sm:font-mono font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-              {formatCurrency(settings.monthlySalary, settings.currency)}
+            <span className="min-w-0 text-[#77827B] dark:text-[#929B95]">
+              {t.dashboard.monthlyFixedSalary}
+            </span>
+            <span
+              dir="ltr"
+              className="shrink-0 whitespace-nowrap font-sans sm:font-mono font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums"
+            >
+              {formatCurrency(settings.monthlySalary, settings.currency, 0, language)}
             </span>
           </div>
 
           <div className="py-2.5 flex items-center justify-between gap-3">
             <span className="min-w-0 text-[#77827B] dark:text-[#929B95]">
-              Fazla mesai kazancı ({formatDuration(monthSummary.overtimeMinutes)})
+              {formatTemplate(t.dashboard.overtimeEarningsLabel, {
+                duration: overtimeDurationText,
+              })}
             </span>
-            <span className="shrink-0 whitespace-nowrap font-sans sm:font-mono font-semibold text-[#D97706] dark:text-[#F59E0B] tabular-nums">
-              +{formatCurrency(monthSummary.overtimeEarnings, settings.currency)}
+            <span
+              dir="ltr"
+              className="shrink-0 whitespace-nowrap font-sans sm:font-mono font-semibold text-[#D97706] dark:text-[#F59E0B] tabular-nums"
+            >
+              +{formatCurrency(monthSummary.overtimeEarnings, settings.currency, 0, language)}
             </span>
           </div>
 
           <div className="py-2.5 flex items-center justify-between gap-3">
-            <span className="min-w-0 text-[#77827B] dark:text-[#929B95]">Hafta sonu & tatil kazancı</span>
-            <span className="shrink-0 whitespace-nowrap font-sans sm:font-mono font-semibold text-[#159B61] dark:text-[#39D98A] tabular-nums">
-              +{formatCurrency(monthSummary.weekendAndHolidayEarnings, settings.currency)}
+            <span className="min-w-0 text-[#77827B] dark:text-[#929B95]">
+              {t.dashboard.weekendHolidayEarnings}
+            </span>
+            <span
+              dir="ltr"
+              className="shrink-0 whitespace-nowrap font-sans sm:font-mono font-semibold text-[#159B61] dark:text-[#39D98A] tabular-nums"
+            >
+              +
+              {formatCurrency(
+                monthSummary.weekendAndHolidayEarnings,
+                settings.currency,
+                0,
+                language
+              )}
             </span>
           </div>
 
           {monthSummary.unpaidLeaveDeduction > 0 && (
             <div className="py-2.5 flex items-center justify-between gap-3">
-              <span className="min-w-0 text-[#77827B] dark:text-[#929B95]">Ücretsiz izin kesintisi</span>
-              <span className="shrink-0 whitespace-nowrap font-sans sm:font-mono font-semibold text-red-600 dark:text-red-400 tabular-nums">
-                -{formatCurrency(monthSummary.unpaidLeaveDeduction, settings.currency)}
+              <span className="min-w-0 text-[#77827B] dark:text-[#929B95]">
+                {t.dashboard.unpaidLeaveDeduction}
+              </span>
+              <span
+                dir="ltr"
+                className="shrink-0 whitespace-nowrap font-sans sm:font-mono font-semibold text-red-600 dark:text-red-400 tabular-nums"
+              >
+                -{formatCurrency(monthSummary.unpaidLeaveDeduction, settings.currency, 0, language)}
               </span>
             </div>
           )}
 
           <div className="pt-3 flex items-center justify-between gap-3">
             <span className="min-w-0 font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-              {monthTitle} tahmini toplam
+              {formatTemplate(t.dashboard.estimatedTotalForMonth, { month: monthTitle })}
             </span>
-            <span className="shrink-0 whitespace-nowrap font-sans sm:font-mono text-base sm:text-lg font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums">
-              {formatCurrency(estimatedMonthlyTotal, settings.currency)}
+            <span
+              dir="ltr"
+              className="shrink-0 whitespace-nowrap font-sans sm:font-mono text-base sm:text-lg font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums"
+            >
+              {formatCurrency(estimatedMonthlyTotal, settings.currency, 0, language)}
             </span>
           </div>
         </div>

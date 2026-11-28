@@ -2,19 +2,27 @@ import React, { useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { MonthlyCalendarGrid } from '../components/MonthlyCalendarGrid';
 import { useMesai } from '../context/MesaiContext';
+import { formatTemplate } from '../i18n';
 import {
-  WORK_TYPE_LABELS,
   formatCurrency,
   formatDuration,
+  formatLocalizedDate,
   formatMonthYear,
-  formatTurkishDate,
   getTodayDateString,
+  getWorkTypeLabel,
   summarizeEntries,
 } from '../utils/calculations';
 
 export const CalendarPage: React.FC = () => {
-  const { settings, entries, openNewEntryModal, openEditEntryModal, requestDeleteEntry } =
-    useMesai();
+  const {
+    settings,
+    entries,
+    openNewEntryModal,
+    openEditEntryModal,
+    requestDeleteEntry,
+    language,
+    t,
+  } = useMesai();
 
   const todayStr = getTodayDateString();
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
@@ -22,7 +30,7 @@ export const CalendarPage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
 
   const monthPrefix = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
-  const monthTitle = formatMonthYear(viewYear, viewMonth);
+  const monthTitle = formatMonthYear(viewYear, viewMonth, language);
 
   const monthEntries = useMemo(
     () =>
@@ -103,10 +111,10 @@ export const CalendarPage: React.FC = () => {
       <header className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-[#17221B] dark:text-[#F4F7F5] tracking-tight">
-            Kazanç
+            {t.earningsPage.title}
           </h1>
           <p className="text-xs text-[#77827B] dark:text-[#929B95]">
-            {monthTitle} günlük ek kazanç ve mesai tablosu
+            {formatTemplate(t.earningsPage.subtitle, { month: monthTitle })}
           </p>
         </div>
 
@@ -116,7 +124,7 @@ export const CalendarPage: React.FC = () => {
           className="min-h-[44px] px-4 rounded-2xl bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211] text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
         >
           <Plus className="w-4 h-4" />
-          <span>Mesai Ekle</span>
+          <span>{t.common.addOvertime}</span>
         </button>
       </header>
 
@@ -144,15 +152,20 @@ export const CalendarPage: React.FC = () => {
         <div>
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <p className="text-xs font-medium text-[#77827B] dark:text-[#929B95]">
-              {monthTitle} Kazanılan Para
+              {formatTemplate(t.earningsPage.monthEarned, { month: monthTitle })}
             </p>
             <span className="font-sans sm:font-mono text-xs text-[#77827B] dark:text-[#929B95] tabular-nums whitespace-nowrap">
-              Sabit maaş {formatCurrency(settings.monthlySalary, settings.currency)}
+              {formatTemplate(t.earningsPage.fixedSalaryLabel, {
+                amount: formatCurrency(settings.monthlySalary, settings.currency, 0, language),
+              })}
             </span>
           </div>
 
-          <div className="mt-2 font-display font-extrabold text-[1.75rem] min-[360px]:text-3xl sm:text-4xl leading-none tracking-tight text-[#17221B] dark:text-[#F4F7F5] tabular-nums whitespace-nowrap">
-            {formatCurrency(estimatedTotal, settings.currency)}
+          <div
+            dir="ltr"
+            className="mt-2 inline-block font-display font-extrabold text-[1.75rem] min-[360px]:text-3xl sm:text-4xl leading-none tracking-tight text-[#17221B] dark:text-[#F4F7F5] tabular-nums whitespace-nowrap"
+          >
+            {formatCurrency(estimatedTotal, settings.currency, 0, language)}
           </div>
         </div>
 
@@ -160,48 +173,74 @@ export const CalendarPage: React.FC = () => {
         <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
           <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-3 min-[360px]:p-3.5 sm:p-4 min-w-0">
             <p className="text-[11px] sm:text-xs font-medium text-[#77827B] dark:text-[#929B95]">
-              %50 Mesailerden
+              {t.earningsPage.from50}
             </p>
-            <p className="mt-1.5 font-display text-[15px] min-[360px]:text-base min-[390px]:text-lg sm:text-xl font-extrabold text-[#D97706] dark:text-[#F59E0B] tabular-nums whitespace-nowrap">
+            <p
+              dir="ltr"
+              className="mt-1.5 font-display text-[15px] min-[360px]:text-base min-[390px]:text-lg sm:text-xl font-extrabold text-[#D97706] dark:text-[#F59E0B] tabular-nums whitespace-nowrap"
+            >
               {overtimeRateBreakdown.rate50Earnings > 0 ? '+' : ''}
-              {formatCurrency(overtimeRateBreakdown.rate50Earnings, settings.currency)}
+              {formatCurrency(
+                overtimeRateBreakdown.rate50Earnings,
+                settings.currency,
+                0,
+                language
+              )}
             </p>
             <p className="mt-1 font-sans sm:font-mono text-[11px] text-[#77827B] dark:text-[#929B95] tabular-nums">
-              {formatDuration(overtimeRateBreakdown.rate50Minutes)} fazla mesai
+              {formatTemplate(t.earningsPage.overtimeSuffix, {
+                duration: formatDuration(overtimeRateBreakdown.rate50Minutes, language),
+              })}
             </p>
           </div>
 
           <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-3 min-[360px]:p-3.5 sm:p-4 min-w-0">
             <p className="text-[11px] sm:text-xs font-medium text-[#77827B] dark:text-[#929B95]">
-              %100 Mesailerden
+              {t.earningsPage.from100}
             </p>
-            <p className="mt-1.5 font-display text-[15px] min-[360px]:text-base min-[390px]:text-lg sm:text-xl font-extrabold text-[#7C3AED] dark:text-[#A78BFA] tabular-nums whitespace-nowrap">
+            <p
+              dir="ltr"
+              className="mt-1.5 font-display text-[15px] min-[360px]:text-base min-[390px]:text-lg sm:text-xl font-extrabold text-[#7C3AED] dark:text-[#A78BFA] tabular-nums whitespace-nowrap"
+            >
               {overtimeRateBreakdown.rate100Earnings > 0 ? '+' : ''}
-              {formatCurrency(overtimeRateBreakdown.rate100Earnings, settings.currency)}
+              {formatCurrency(
+                overtimeRateBreakdown.rate100Earnings,
+                settings.currency,
+                0,
+                language
+              )}
             </p>
             <p className="mt-1 font-sans sm:font-mono text-[11px] text-[#77827B] dark:text-[#929B95] tabular-nums">
-              {formatDuration(overtimeRateBreakdown.rate100Minutes)} fazla mesai
+              {formatTemplate(t.earningsPage.overtimeSuffix, {
+                duration: formatDuration(overtimeRateBreakdown.rate100Minutes, language),
+              })}
             </p>
           </div>
         </div>
 
         <div className="pt-3 border-t border-[#D7E0DA] dark:border-white/[0.06] flex items-center justify-between gap-3 text-xs">
           <span className="text-[#77827B] dark:text-[#929B95]">
-            Bu ay toplam ek mesai
+            {t.earningsPage.thisMonthExtra}
           </span>
-          <span className="shrink-0 whitespace-nowrap font-sans sm:font-mono font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums">
+          <span
+            dir="ltr"
+            className="shrink-0 whitespace-nowrap font-sans sm:font-mono font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums"
+          >
             {monthSummary.totalExtraEarnings > 0 ? '+' : ''}
-            {formatCurrency(monthSummary.totalExtraEarnings, settings.currency)}
+            {formatCurrency(monthSummary.totalExtraEarnings, settings.currency, 0, language)}
           </span>
         </div>
 
         <div className="flex items-center justify-between gap-3 text-xs">
           <span className="text-[#77827B] dark:text-[#929B95]">
-            Tüm zamanlar toplam ek kazanç
+            {t.earningsPage.allTimeExtra}
           </span>
-          <span className="shrink-0 whitespace-nowrap font-sans sm:font-mono font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
+          <span
+            dir="ltr"
+            className="shrink-0 whitespace-nowrap font-sans sm:font-mono font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums"
+          >
             {allTimeSummary.totalExtraEarnings > 0 ? '+' : ''}
-            {formatCurrency(allTimeSummary.totalExtraEarnings, settings.currency)}
+            {formatCurrency(allTimeSummary.totalExtraEarnings, settings.currency, 0, language)}
           </span>
         </div>
       </section>
@@ -210,29 +249,33 @@ export const CalendarPage: React.FC = () => {
       <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-3.5 min-[360px]:p-4 sm:p-6">
         <div className="flex items-center justify-between gap-2 mb-3">
           <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-            {monthTitle} Kayıtları
+            {formatTemplate(t.earningsPage.monthRecordsTitle, { month: monthTitle })}
           </h2>
           <span className="font-mono text-xs text-[#77827B] dark:text-[#929B95] tabular-nums whitespace-nowrap">
-            {monthEntries.length} kayıt
+            {formatTemplate(t.earningsPage.recordsCount, { count: monthEntries.length })}
           </span>
         </div>
 
         {monthEntries.length === 0 ? (
           <p className="py-6 text-center text-xs text-[#77827B] dark:text-[#929B95]">
-            Bu ay için henüz mesai kaydı girilmemiş.
+            {t.earningsPage.noRecordsThisMonth}
           </p>
         ) : (
           <>
             {/* Mobile auto-sized table (no horizontal scroll, zero clipped currency) */}
             <div className="sm:hidden">
-              <table className="w-full table-auto border-collapse text-left">
+              <table className="w-full table-auto border-collapse text-start">
                 <thead>
                   <tr className="border-b border-[#D7E0DA] dark:border-white/[0.08] text-[10.5px] min-[360px]:text-[11px] font-semibold text-[#77827B] dark:text-[#929B95]">
-                    <th className="py-2 pr-1">Tarih & Tür</th>
-                    <th className="w-[1%] whitespace-nowrap py-2 px-1 text-right">Süre</th>
-                    <th className="w-[1%] whitespace-nowrap py-2 pl-1 text-right">Kazanç</th>
-                    <th className="w-[1%] whitespace-nowrap py-2 pl-1 text-right">
-                      <span className="sr-only">Sil</span>
+                    <th className="py-2 pe-1">{t.calendar.colDateAndType}</th>
+                    <th className="w-[1%] whitespace-nowrap py-2 px-1 text-end">
+                      {t.calendar.colDuration}
+                    </th>
+                    <th className="w-[1%] whitespace-nowrap py-2 ps-1 text-end">
+                      {t.calendar.colEarnings}
+                    </th>
+                    <th className="w-[1%] whitespace-nowrap py-2 ps-1 text-end">
+                      <span className="sr-only">{t.common.delete}</span>
                     </th>
                   </tr>
                 </thead>
@@ -259,6 +302,12 @@ export const CalendarPage: React.FC = () => {
                       : ratePct === 50
                       ? 'bg-[#D97706] dark:bg-[#F59E0B]'
                       : 'bg-[#159B61] dark:bg-[#39D98A]';
+                    const dateLabel = formatLocalizedDate(entry.date, false, language);
+                    const pctLabel = ratePct
+                      ? language === 'tr'
+                        ? `%${ratePct}`
+                        : `${ratePct}%`
+                      : '';
 
                     return (
                       <tr
@@ -266,26 +315,28 @@ export const CalendarPage: React.FC = () => {
                         onClick={() => openEditEntryModal(entry)}
                         className="cursor-pointer active:bg-[#EEF2EF]/80 dark:active:bg-[#222925]/80 transition-colors"
                       >
-                        <td className="py-2.5 pr-1 align-middle max-w-0 w-full">
+                        <td className="py-2.5 pe-1 align-middle max-w-0 w-full">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
                             <span className="text-[12px] min-[360px]:text-[13px] font-semibold text-[#2A302D] dark:text-[#F5F3EE] truncate">
-                              {formatTurkishDate(entry.date)}
+                              {dateLabel}
                             </span>
                           </div>
-                          <p className="pl-3.5 mt-0.5 text-[10.5px] min-[360px]:text-[11px] text-[#77827B] dark:text-[#929B95] truncate">
-                            {WORK_TYPE_LABELS[entry.workType]}
-                            {ratePct ? ` · %${ratePct}` : ''}
+                          <p className="ps-3.5 mt-0.5 text-[10.5px] min-[360px]:text-[11px] text-[#77827B] dark:text-[#929B95] truncate">
+                            {getWorkTypeLabel(entry.workType, language)}
+                            {pctLabel ? ` · ${pctLabel}` : ''}
                             {entry.notes ? ` · ${entry.notes}` : ''}
                           </p>
                         </td>
 
-                        <td className="w-[1%] whitespace-nowrap py-2.5 px-1 text-right align-middle font-sans text-[11px] min-[360px]:text-xs text-[#77827B] dark:text-[#929B95] tabular-nums">
-                          {isLeave ? '—' : formatDuration(entry.calculatedDurationMinutes)}
+                        <td className="w-[1%] whitespace-nowrap py-2.5 px-1 text-end align-middle font-sans text-[11px] min-[360px]:text-xs text-[#77827B] dark:text-[#929B95] tabular-nums">
+                          {isLeave
+                            ? '—'
+                            : formatDuration(entry.calculatedDurationMinutes, language)}
                         </td>
 
                         <td
-                          className={`w-[1%] whitespace-nowrap py-2.5 pl-1 text-right align-middle font-sans text-[11.5px] min-[360px]:text-[13px] font-bold tabular-nums ${
+                          className={`w-[1%] whitespace-nowrap py-2.5 ps-1 text-end align-middle font-sans text-[11.5px] min-[360px]:text-[13px] font-bold tabular-nums ${
                             entry.estimatedEarnings < 0
                               ? 'text-red-600 dark:text-red-400'
                               : entry.estimatedEarnings > 0
@@ -293,23 +344,32 @@ export const CalendarPage: React.FC = () => {
                               : 'text-[#77827B] dark:text-[#929B95]'
                           }`}
                         >
-                          {entry.estimatedEarnings !== 0
-                            ? `${entry.estimatedEarnings > 0 ? '+' : ''}${formatCurrency(
+                          {entry.estimatedEarnings !== 0 ? (
+                            <span dir="ltr">
+                              {entry.estimatedEarnings > 0 ? '+' : ''}
+                              {formatCurrency(
                                 entry.estimatedEarnings,
-                                settings.currency
-                              )}`
-                            : '—'}
+                                settings.currency,
+                                0,
+                                language
+                              )}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
                         </td>
 
-                        <td className="w-[1%] whitespace-nowrap py-1.5 pl-1 text-right align-middle">
+                        <td className="w-[1%] whitespace-nowrap py-1.5 ps-1 text-end align-middle">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               requestDeleteEntry(entry);
                             }}
-                            aria-label={`${formatTurkishDate(entry.date)} kaydını sil`}
-                            title="Kaydı sil"
+                            aria-label={formatTemplate(t.calendar.deleteEntryAria, {
+                              date: dateLabel,
+                            })}
+                            title={t.calendar.deleteEntryTitle}
                             className="min-h-[34px] min-w-[32px] inline-flex items-center justify-center rounded-xl text-red-600/80 dark:text-red-400/80 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -324,15 +384,15 @@ export const CalendarPage: React.FC = () => {
 
             {/* Desktop table */}
             <div className="hidden sm:block">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-start border-collapse">
                 <thead>
                   <tr className="border-b border-[#D7E0DA] dark:border-white/[0.08] text-[11px] font-semibold text-[#77827B] dark:text-[#929B95]">
-                    <th className="py-2.5 pr-3">Tarih</th>
-                    <th className="py-2.5 px-3">Tür</th>
-                    <th className="py-2.5 px-3 text-right">Süre</th>
-                    <th className="py-2.5 px-3 text-right">Kazanç</th>
-                    <th className="py-2.5 pl-3">Not</th>
-                    <th className="py-2.5 pl-3 text-right">İşlem</th>
+                    <th className="py-2.5 pe-3">{t.calendar.colDate}</th>
+                    <th className="py-2.5 px-3">{t.calendar.colType}</th>
+                    <th className="py-2.5 px-3 text-end">{t.calendar.colDuration}</th>
+                    <th className="py-2.5 px-3 text-end">{t.calendar.colEarnings}</th>
+                    <th className="py-2.5 ps-3">{t.calendar.colNotes}</th>
+                    <th className="py-2.5 ps-3 text-end">{t.calendar.colAction}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#D7E0DA] dark:divide-white/[0.06] text-sm">
@@ -358,6 +418,12 @@ export const CalendarPage: React.FC = () => {
                       : ratePct === 50
                       ? 'bg-[#D97706] dark:bg-[#F59E0B]'
                       : 'bg-[#159B61] dark:bg-[#39D98A]';
+                    const dateLabel = formatLocalizedDate(entry.date, false, language);
+                    const pctLabel = ratePct
+                      ? language === 'tr'
+                        ? `%${ratePct}`
+                        : `${ratePct}%`
+                      : '';
 
                     return (
                       <tr
@@ -365,21 +431,23 @@ export const CalendarPage: React.FC = () => {
                         onClick={() => openEditEntryModal(entry)}
                         className="cursor-pointer hover:bg-[#EEF2EF]/60 dark:hover:bg-[#222925]/60 transition-colors"
                       >
-                        <td className="py-3 pr-3 font-medium text-[#2A302D] dark:text-[#F5F3EE] whitespace-nowrap">
-                          {formatTurkishDate(entry.date)}
+                        <td className="py-3 pe-3 font-medium text-[#2A302D] dark:text-[#F5F3EE] whitespace-nowrap">
+                          {dateLabel}
                         </td>
                         <td className="py-3 px-3 whitespace-nowrap">
                           <span className="inline-flex items-center gap-2 text-xs font-medium text-[#17221B] dark:text-[#F4F7F5]">
                             <span className={`w-2 h-2 rounded-full ${dotColor}`} />
-                            {WORK_TYPE_LABELS[entry.workType]}
-                            {ratePct ? ` · %${ratePct}` : ''}
+                            {getWorkTypeLabel(entry.workType, language)}
+                            {pctLabel ? ` · ${pctLabel}` : ''}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-right font-mono text-xs text-[#77827B] dark:text-[#929B95] tabular-nums whitespace-nowrap">
-                          {isLeave ? '—' : formatDuration(entry.calculatedDurationMinutes)}
+                        <td className="py-3 px-3 text-end font-mono text-xs text-[#77827B] dark:text-[#929B95] tabular-nums whitespace-nowrap">
+                          {isLeave
+                            ? '—'
+                            : formatDuration(entry.calculatedDurationMinutes, language)}
                         </td>
                         <td
-                          className={`py-3 px-3 text-right font-mono text-xs font-bold tabular-nums whitespace-nowrap ${
+                          className={`py-3 px-3 text-end font-mono text-xs font-bold tabular-nums whitespace-nowrap ${
                             entry.estimatedEarnings < 0
                               ? 'text-red-600 dark:text-red-400'
                               : entry.estimatedEarnings > 0
@@ -387,25 +455,34 @@ export const CalendarPage: React.FC = () => {
                               : 'text-[#77827B] dark:text-[#929B95]'
                           }`}
                         >
-                          {entry.estimatedEarnings !== 0
-                            ? `${entry.estimatedEarnings > 0 ? '+' : ''}${formatCurrency(
+                          {entry.estimatedEarnings !== 0 ? (
+                            <span dir="ltr">
+                              {entry.estimatedEarnings > 0 ? '+' : ''}
+                              {formatCurrency(
                                 entry.estimatedEarnings,
-                                settings.currency
-                              )}`
-                            : '—'}
+                                settings.currency,
+                                0,
+                                language
+                              )}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
                         </td>
-                        <td className="py-3 pl-3 text-xs text-[#77827B] dark:text-[#929B95] max-w-[180px] truncate">
+                        <td className="py-3 ps-3 text-xs text-[#77827B] dark:text-[#929B95] max-w-[180px] truncate">
                           {entry.notes || '—'}
                         </td>
-                        <td className="py-2 pl-3 text-right whitespace-nowrap">
+                        <td className="py-2 ps-3 text-end whitespace-nowrap">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               requestDeleteEntry(entry);
                             }}
-                            aria-label={`${formatTurkishDate(entry.date)} kaydını sil`}
-                            title="Kaydı sil"
+                            aria-label={formatTemplate(t.calendar.deleteEntryAria, {
+                              date: dateLabel,
+                            })}
+                            title={t.calendar.deleteEntryTitle}
                             className="min-h-[34px] min-w-[34px] inline-flex items-center justify-center rounded-xl text-red-600/80 dark:text-red-400/80 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />

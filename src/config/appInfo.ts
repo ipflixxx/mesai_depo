@@ -2,9 +2,9 @@ import { DistributionChannel } from '../types/update';
 
 export const APP_ID = 'com.mesai.app';
 export const APP_VERSION_NAME: string =
-  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.10';
+  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.11';
 export const APP_VERSION_CODE: number =
-  typeof __APP_VERSION_CODE__ !== 'undefined' ? __APP_VERSION_CODE__ : 10010;
+  typeof __APP_VERSION_CODE__ !== 'undefined' ? __APP_VERSION_CODE__ : 10011;
 export const DEFAULT_DISTRIBUTION_CHANNEL: DistributionChannel =
   typeof __DISTRIBUTION_CHANNEL__ !== 'undefined' ? __DISTRIBUTION_CHANNEL__ : 'direct';
 

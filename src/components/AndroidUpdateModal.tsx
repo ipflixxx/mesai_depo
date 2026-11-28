@@ -9,6 +9,8 @@ import {
   Smartphone,
   X,
 } from 'lucide-react';
+import { useMesai } from '../context/MesaiContext';
+import { formatTemplate } from '../i18n';
 import { MesaiUpdater } from '../native/mesaiUpdater';
 import { formatBytes } from '../services/androidUpdateService';
 import {
@@ -31,6 +33,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
   updateResult,
   onClose,
 }) => {
+  const { t } = useMesai();
   const [phase, setPhase] = useState<UpdateDownloadPhase>('idle');
   const [progress, setProgress] = useState<number>(0);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -52,11 +55,13 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
       setPhase(ev.phase);
       setProgress(Math.max(0, Math.min(100, ev.progress)));
       if (ev.phase === 'downloading') {
-        setStatusMessage(`APK indiriliyor... %${ev.progress}`);
+        setStatusMessage(
+          formatTemplate(t.updater.downloadingProgress, { progress: ev.progress })
+        );
       } else if (ev.phase === 'verifying') {
-        setStatusMessage('SHA-256 bütünlük doğrulaması yapılıyor...');
+        setStatusMessage(t.updater.verifying);
       } else if (ev.phase === 'installing') {
-        setStatusMessage('Android güvenli kurulum ekranı açılıyor...');
+        setStatusMessage(t.updater.installing);
       }
     })
       .then((listener) => {
@@ -71,7 +76,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
         void handle.remove();
       }
     };
-  }, [isOpen, runtimeInfo.isNativeAndroid]);
+  }, [isOpen, runtimeInfo.isNativeAndroid, t.updater]);
 
   if (!isOpen || !updateResult || !updateResult.hasUpdate) {
     return null;
@@ -89,9 +94,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
 
     if (isPlayChannel) {
       if (!runtimeInfo.isNativeAndroid) {
-        setStatusMessage(
-          'Google Play uygulama içi güncelleme akışı yalnızca Android cihazda çalışır.'
-        );
+        setStatusMessage(t.updater.playAndroidOnly);
         return;
       }
       try {
@@ -103,9 +106,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
       } catch (err) {
         setPhase('error');
         setErrorMessage(
-          err instanceof Error
-            ? err.message
-            : 'Google Play güncellemesi başlatılamadı.'
+          err instanceof Error ? err.message : t.updater.errPlayStart
         );
       }
       return;
@@ -114,16 +115,14 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
     if (!manifest) return;
 
     if (!runtimeInfo.isNativeAndroid) {
-      setStatusMessage(
-        'APK indirme, SHA-256 doğrulama ve Android kurulum adımı yalnızca paketlenmiş Android uygulamasında çalışır. AI Studio web önizlemesinde yalnızca sürüm bilgileri görüntülenir.'
-      );
+      setStatusMessage(t.updater.directAndroidOnly);
       return;
     }
 
     try {
       setPhase('downloading');
       setProgress(0);
-      setStatusMessage('APK paketi indiriliyor...');
+      setStatusMessage(t.updater.downloadingStart);
 
       const res = await MesaiUpdater.downloadAndInstallApk({
         url: manifest.apkUrl,
@@ -133,23 +132,17 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
 
       if (res.status === 'permission_required') {
         setPhase('permission_required');
-        setStatusMessage(
-          'Güvenli kurulum için Android ayarlarından "Bu kaynaktan uygulamalara izin ver" seçeneğini onaylayıp tekrar deneyin.'
-        );
+        setStatusMessage(t.updater.permissionRequired);
         return;
       }
 
       setPhase('installing');
       setProgress(100);
-      setStatusMessage(
-        'SHA-256 doğrulandı. Kurulumu tamamlamak için Android yükleme penceresini onaylayın.'
-      );
+      setStatusMessage(t.updater.sha256Verified);
     } catch (err) {
       setPhase('error');
       setErrorMessage(
-        err instanceof Error
-          ? err.message
-          : 'APK indirilirken veya SHA-256 doğrulanırken hata oluştu.'
+        err instanceof Error ? err.message : t.updater.errApkDownload
       );
     }
   };
@@ -183,10 +176,10 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
             </div>
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-[#77827B] dark:text-[#929B95]">
-                {isMandatory ? 'Zorunlu Güncelleme' : 'Yeni Sürüm Hazır'}
+                {isMandatory ? t.updater.mandatoryBadge : t.updater.optionalBadge}
               </p>
               <h2 className="text-lg font-bold text-[#17221B] dark:text-[#F4F7F5] tracking-tight">
-                MESAİ Güncellemesi
+                {t.updater.modalTitle}
               </h2>
             </div>
           </div>
@@ -195,7 +188,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Kapat"
+              aria-label={t.common.close}
               className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-[#77827B] dark:text-[#929B95] hover:bg-[#EEF2EF] dark:hover:bg-[#222925]"
             >
               <X className="w-5 h-5" />
@@ -206,20 +199,32 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
         {/* Version transition summary */}
         <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-4 flex items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Mevcut sürüm</p>
-            <p className="mt-0.5 font-mono text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
+            <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">
+              {t.updater.currentVersion}
+            </p>
+            <p
+              dir="ltr"
+              className="mt-0.5 font-mono text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums"
+            >
               v{updateResult.currentVersionName}
             </p>
           </div>
-          <ArrowRight className="w-4 h-4 text-[#77827B] dark:text-[#929B95] shrink-0" />
-          <div className="text-right">
-            <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Yeni sürüm</p>
-            <p className="mt-0.5 font-mono text-sm font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums">
+          <ArrowRight className="w-4 h-4 text-[#77827B] dark:text-[#929B95] shrink-0 rtl:rotate-180" />
+          <div className="text-end">
+            <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">
+              {t.updater.newVersion}
+            </p>
+            <p
+              dir="ltr"
+              className="mt-0.5 font-mono text-sm font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums"
+            >
               {manifest
                 ? `v${manifest.versionName}`
                 : updateResult.playStoreAvailableVersionCode
-                ? `Yapı ${updateResult.playStoreAvailableVersionCode}`
-                : 'Yeni Sürüm'}
+                ? formatTemplate(t.updater.buildNumber, {
+                    code: updateResult.playStoreAvailableVersionCode,
+                  })
+                : t.updater.newVersionFallback}
             </p>
           </div>
         </div>
@@ -228,7 +233,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
         {manifest && manifest.releaseNotes.length > 0 && (
           <div className="space-y-2">
             <h3 className="text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-              Sürüm Notları
+              {t.updater.releaseNotes}
             </h3>
             <ul className="max-h-36 overflow-y-auto space-y-1.5 rounded-2xl bg-[#EEF2EF]/70 dark:bg-[#222925]/60 border border-[#CFD8D2] dark:border-white/[0.07] p-3.5 text-xs text-[#17221B] dark:text-[#F4F7F5] leading-relaxed">
               {manifest.releaseNotes.map((note, idx) => (
@@ -247,13 +252,19 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
             <div className="flex items-center justify-between gap-2">
               <span className="flex items-center gap-1.5 font-medium text-[#17221B] dark:text-[#F4F7F5]">
                 <ShieldCheck className="w-4 h-4 text-[#159B61] dark:text-[#39D98A]" />
-                SHA-256 Bütünlük Doğrulaması
+                {t.updater.sha256Integrity}
               </span>
-              <span className="font-mono text-[#77827B] dark:text-[#929B95] tabular-nums">
+              <span
+                dir="ltr"
+                className="font-mono text-[#77827B] dark:text-[#929B95] tabular-nums"
+              >
                 {formatBytes(manifest.sizeBytes)}
               </span>
             </div>
-            <p className="font-mono text-[11px] text-[#77827B] dark:text-[#929B95] truncate">
+            <p
+              dir="ltr"
+              className="font-mono text-[11px] text-[#77827B] dark:text-[#929B95] truncate"
+            >
               {manifest.sha256}
             </p>
           </div>
@@ -266,8 +277,11 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
               <span className="font-medium text-[#17221B] dark:text-[#F4F7F5]">
                 {statusMessage}
               </span>
-              <span className="font-mono font-semibold text-[#159B61] dark:text-[#39D98A] tabular-nums">
-                %{progress}
+              <span
+                dir="ltr"
+                className="font-mono font-semibold text-[#159B61] dark:text-[#39D98A] tabular-nums"
+              >
+                {progress}%
               </span>
             </div>
             <div className="h-2 rounded-full bg-[#EEF2EF] dark:bg-[#222925] overflow-hidden">
@@ -291,7 +305,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
                   onClick={() => void MesaiUpdater.openUnknownSourcesSettings()}
                   className="inline-flex items-center gap-1.5 font-semibold text-[#159B61] dark:text-[#39D98A]"
                 >
-                  <span>Yükleme İznini Aç</span>
+                  <span>{t.updater.openInstallPerm}</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </button>
               )}
@@ -307,7 +321,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
 
         {isMandatory && (
           <p className="text-[11px] text-[#77827B] dark:text-[#929B95] leading-relaxed">
-            Bu güncelleme güvenlik ve hesaplama tutarlılığı için zorunludur. Devam etmek için güncellemeyi yüklemeniz gerekir.
+            {t.updater.mandatoryNote}
           </p>
         )}
 
@@ -320,7 +334,7 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
               onClick={onClose}
               className="flex-1 min-h-[46px] rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5] text-sm font-semibold disabled:opacity-50"
             >
-              Daha Sonra
+              {t.common.later}
             </button>
           )}
           <button
@@ -332,10 +346,10 @@ export const AndroidUpdateModal: React.FC<AndroidUpdateModalProps> = ({
             <Download className="w-4 h-4" />
             <span>
               {isPlayChannel
-                ? 'Google Play ile Güncelle'
+                ? t.updater.updateViaPlay
                 : phase === 'error'
-                ? 'Tekrar Dene'
-                : 'Güncellemeyi İndir'}
+                ? t.common.retry
+                : t.updater.downloadUpdate}
             </span>
           </button>
         </div>

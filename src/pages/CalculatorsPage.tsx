@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Briefcase, CalendarCheck, Clock, TrendingUp } from 'lucide-react';
 import { NumericInput, parseLocaleNumber } from '../components/NumericInput';
 import { useMesai } from '../context/MesaiContext';
+import { formatTemplate } from '../i18n';
 import { formatCurrency } from '../utils/calculations';
 
 type CalcTab = 'raise' | 'severance' | 'overtime' | 'leave';
@@ -16,7 +17,7 @@ function getDefaultDates(): { start: string; end: string } {
 }
 
 export const CalculatorsPage: React.FC = () => {
-  const { settings } = useMesai();
+  const { settings, language, t } = useMesai();
   const [activeTab, setActiveTab] = useState<CalcTab>('raise');
 
   // 1. Zam Hesaplama State
@@ -169,10 +170,10 @@ export const CalculatorsPage: React.FC = () => {
     <div className="space-y-5 sm:space-y-6">
       <header>
         <h1 className="text-xl sm:text-2xl font-bold text-[#17221B] dark:text-[#F4F7F5] tracking-tight">
-          Hesaplama
+          {t.calculators.title}
         </h1>
         <p className="text-xs text-[#77827B] dark:text-[#929B95]">
-          Zam, kıdem/ihbar tazminatı, ek mesai ve yıllık izin hesaplayıcıları
+          {t.calculators.subtitle}
         </p>
       </header>
 
@@ -180,10 +181,10 @@ export const CalculatorsPage: React.FC = () => {
       <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08]">
         {(
           [
-            { id: 'raise', label: 'Zam', icon: TrendingUp },
-            { id: 'severance', label: 'Tazminat', icon: Briefcase },
-            { id: 'overtime', label: 'Mesai', icon: Clock },
-            { id: 'leave', label: 'Yıllık İzin', icon: CalendarCheck },
+            { id: 'raise', label: t.calculators.tabRaise, icon: TrendingUp },
+            { id: 'severance', label: t.calculators.tabSeverance, icon: Briefcase },
+            { id: 'overtime', label: t.calculators.tabOvertime, icon: Clock },
+            { id: 'leave', label: t.calculators.tabLeave, icon: CalendarCheck },
           ] as const
         ).map((tab) => {
           const Icon = tab.icon;
@@ -200,7 +201,7 @@ export const CalculatorsPage: React.FC = () => {
               }`}
             >
               <Icon className="w-3.5 h-3.5 shrink-0 hidden sm:block" />
-              <span>{tab.label}</span>
+              <span className="truncate">{tab.label}</span>
             </button>
           );
         })}
@@ -212,10 +213,10 @@ export const CalculatorsPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-bold text-[#17221B] dark:text-[#F4F7F5]">
-                Zam Hesaplama
+                {t.calculators.raiseTitle}
               </h2>
               <p className="text-xs text-[#77827B] dark:text-[#929B95]">
-                Orana göre yeni maaşını veya hedef maaşa göre zam oranını hesapla
+                {t.calculators.raiseDesc}
               </p>
             </div>
 
@@ -229,7 +230,7 @@ export const CalculatorsPage: React.FC = () => {
                     : 'text-[#77827B] dark:text-[#929B95]'
                 }`}
               >
-                Oran (%) ile
+                {t.calculators.raiseModePercent}
               </button>
               <button
                 type="button"
@@ -240,7 +241,7 @@ export const CalculatorsPage: React.FC = () => {
                     : 'text-[#77827B] dark:text-[#929B95]'
                 }`}
               >
-                Hedef Maaş
+                {t.calculators.raiseModeTarget}
               </button>
             </div>
           </div>
@@ -248,7 +249,9 @@ export const CalculatorsPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                Mevcut aylık maaş ({settings.currency})
+                {formatTemplate(t.calculators.currentMonthlySalary, {
+                  currency: settings.currency,
+                })}
               </label>
               <NumericInput
                 allowDecimal
@@ -262,7 +265,7 @@ export const CalculatorsPage: React.FC = () => {
             {raiseMode === 'percent' ? (
               <div>
                 <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Zam oranı (%)
+                  {t.calculators.raisePercentLabel}
                 </label>
                 <NumericInput
                   allowDecimal
@@ -275,7 +278,9 @@ export const CalculatorsPage: React.FC = () => {
             ) : (
               <div>
                 <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Yeni / hedef maaş ({settings.currency})
+                  {formatTemplate(t.calculators.targetSalaryLabel, {
+                    currency: settings.currency,
+                  })}
                 </label>
                 <NumericInput
                   allowDecimal
@@ -295,13 +300,14 @@ export const CalculatorsPage: React.FC = () => {
                   key={pct}
                   type="button"
                   onClick={() => setRaisePercent(String(pct))}
+                  dir="ltr"
                   className={`min-h-[38px] rounded-xl font-mono text-xs font-semibold transition-colors ${
                     Number(raisePercent) === pct
                       ? 'bg-[#17221B] dark:bg-[#F4F7F5] text-white dark:text-[#101211]'
                       : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                   }`}
                 >
-                  %{pct}
+                  {language === 'tr' ? `%${pct}` : `${pct}%`}
                 </button>
               ))}
             </div>
@@ -311,38 +317,65 @@ export const CalculatorsPage: React.FC = () => {
           <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-5 space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs text-[#77827B] dark:text-[#929B95]">Yeni aylık maaş</p>
-                <p className="mt-1 font-display text-2xl sm:text-3xl font-extrabold text-[#159B61] dark:text-[#39D98A] tabular-nums">
-                  {formatCurrency(raiseResult.newSalary, settings.currency)}
+                <p className="text-xs text-[#77827B] dark:text-[#929B95]">
+                  {t.calculators.newMonthlySalary}
+                </p>
+                <p
+                  dir="ltr"
+                  className="mt-1 font-display text-2xl sm:text-3xl font-extrabold text-[#159B61] dark:text-[#39D98A] tabular-nums"
+                >
+                  {formatCurrency(raiseResult.newSalary, settings.currency, 0, language)}
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-[#77827B] dark:text-[#929B95]">Zam oranı</p>
-                <p className="mt-1 font-mono text-lg font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-                  %{raiseResult.percent.toFixed(1)}
+              <div className="text-end">
+                <p className="text-xs text-[#77827B] dark:text-[#929B95]">
+                  {t.calculators.raiseRateResult}
+                </p>
+                <p
+                  dir="ltr"
+                  className="mt-1 font-mono text-lg font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums"
+                >
+                  {language === 'tr'
+                    ? `%${raiseResult.percent.toFixed(1)}`
+                    : `${raiseResult.percent.toFixed(1)}%`}
                 </p>
               </div>
             </div>
 
             <div className="pt-3 border-t border-[#CFD8D2] dark:border-white/[0.06] grid grid-cols-3 gap-3">
               <div>
-                <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Aylık fark</p>
-                <p className="mt-0.5 font-mono text-sm font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums">
+                <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">
+                  {t.calculators.monthlyDiff}
+                </p>
+                <p
+                  dir="ltr"
+                  className="mt-0.5 font-mono text-sm font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums"
+                >
                   {raiseResult.diff >= 0 ? '+' : ''}
-                  {formatCurrency(raiseResult.diff, settings.currency)}
+                  {formatCurrency(raiseResult.diff, settings.currency, 0, language)}
                 </p>
               </div>
               <div>
-                <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Yıllık fark</p>
-                <p className="mt-0.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
+                <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">
+                  {t.calculators.annualDiff}
+                </p>
+                <p
+                  dir="ltr"
+                  className="mt-0.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums"
+                >
                   {raiseResult.annualDiff >= 0 ? '+' : ''}
-                  {formatCurrency(raiseResult.annualDiff, settings.currency)}
+                  {formatCurrency(raiseResult.annualDiff, settings.currency, 0, language)}
                 </p>
               </div>
               <div>
-                <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">Yeni saatlik</p>
-                <p className="mt-0.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-                  {formatCurrency(raiseResult.newHourly, settings.currency, 2)}
+                <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">
+                  {t.calculators.newHourly}
+                </p>
+                <p
+                  dir="ltr"
+                  className="mt-0.5 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums"
+                >
+                  {formatCurrency(raiseResult.newHourly, settings.currency, 2, language)}
                 </p>
               </div>
             </div>
@@ -355,20 +388,21 @@ export const CalculatorsPage: React.FC = () => {
         <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-5">
           <div>
             <h2 className="text-base font-bold text-[#17221B] dark:text-[#F4F7F5]">
-              Kıdem ve İhbar Tazminatı
+              {t.calculators.severanceTitle}
             </h2>
             <p className="text-xs text-[#77827B] dark:text-[#929B95]">
-              Çalışma süresi ve giydirilmiş brüt maaşa göre tahmini tazminat hesabı
+              {t.calculators.severanceDesc}
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                İşe giriş tarihi
+                {t.calculators.hireDate}
               </label>
               <input
                 type="date"
+                dir="ltr"
                 value={hireDate}
                 onChange={(e) => setHireDate(e.target.value)}
                 className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
@@ -376,10 +410,11 @@ export const CalculatorsPage: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                Çıkış tarihi
+                {t.calculators.exitDate}
               </label>
               <input
                 type="date"
+                dir="ltr"
                 value={exitDate}
                 onChange={(e) => setExitDate(e.target.value)}
                 className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
@@ -390,7 +425,9 @@ export const CalculatorsPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                Aylık brüt maaş ({settings.currency})
+                {formatTemplate(t.calculators.monthlyGrossSalary, {
+                  currency: settings.currency,
+                })}
               </label>
               <NumericInput
                 allowDecimal
@@ -402,7 +439,7 @@ export const CalculatorsPage: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                Aylık yan haklar (yol, yemek, prim)
+                {t.calculators.monthlyBenefits}
               </label>
               <NumericInput
                 allowDecimal
@@ -416,7 +453,7 @@ export const CalculatorsPage: React.FC = () => {
 
           <div className="flex items-center justify-between rounded-2xl bg-[#EEF2EF]/75 dark:bg-[#222925]/60 border border-[#CFD8D2] dark:border-white/[0.07] px-4 py-3">
             <span className="text-xs font-medium text-[#17221B] dark:text-[#F4F7F5]">
-              İhbar tazminatını da hesapla
+              {t.calculators.includeNoticeLabel}
             </span>
             <button
               type="button"
@@ -427,7 +464,7 @@ export const CalculatorsPage: React.FC = () => {
                   : 'bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.07] text-[#77827B] dark:text-[#929B95]'
               }`}
             >
-              {includeNotice ? 'Dahil' : 'Hariç'}
+              {includeNotice ? t.calculators.included : t.calculators.excluded}
             </button>
           </div>
 
@@ -436,47 +473,65 @@ export const CalculatorsPage: React.FC = () => {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs text-[#77827B] dark:text-[#929B95]">
-                  Tahmini toplam tazminat
+                  {t.calculators.estimatedTotalSeverance}
                 </p>
-                <p className="mt-1 font-display text-2xl sm:text-3xl font-extrabold text-[#159B61] dark:text-[#39D98A] tabular-nums">
-                  {formatCurrency(severanceResult.totalEstimate, settings.currency)}
+                <p
+                  dir="ltr"
+                  className="mt-1 font-display text-2xl sm:text-3xl font-extrabold text-[#159B61] dark:text-[#39D98A] tabular-nums"
+                >
+                  {formatCurrency(severanceResult.totalEstimate, settings.currency, 0, language)}
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-[#77827B] dark:text-[#929B95]">Çalışma süresi</p>
+              <div className="text-end">
+                <p className="text-xs text-[#77827B] dark:text-[#929B95]">
+                  {t.calculators.workDuration}
+                </p>
                 <p className="mt-1 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
                   {severanceResult.validDates
-                    ? `${severanceResult.fullYears} yıl ${severanceResult.months} ay ${severanceResult.days} gün`
-                    : 'Geçersiz tarih'}
+                    ? formatTemplate(t.calculators.durationFormat, {
+                        years: severanceResult.fullYears,
+                        months: severanceResult.months,
+                        days: severanceResult.days,
+                      })
+                    : t.calculators.invalidDate}
                 </p>
               </div>
             </div>
 
             <div className="pt-3 border-t border-[#CFD8D2] dark:border-white/[0.06] space-y-2 text-xs">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <span className="text-[#77827B] dark:text-[#929B95]">
-                  Net kıdem tazminatı (damga vergisi düşülmüş)
+                  {t.calculators.netSeveranceLabel}
                 </span>
-                <span className="font-mono font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
+                <span
+                  dir="ltr"
+                  className="font-mono font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums shrink-0"
+                >
                   {severanceResult.eligibleForSeverance
-                    ? formatCurrency(severanceResult.netSeverance, settings.currency)
-                    : '1 yıl altı (hak yok)'}
+                    ? formatCurrency(severanceResult.netSeverance, settings.currency, 0, language)
+                    : t.calculators.underOneYear}
                 </span>
               </div>
 
               {includeNotice && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <span className="text-[#77827B] dark:text-[#929B95]">
-                    Brüt ihbar tazminatı ({severanceResult.noticeWeeks} hafta / {severanceResult.noticeDays} gün)
+                    {formatTemplate(t.calculators.grossNoticeLabel, {
+                      weeks: severanceResult.noticeWeeks,
+                      days: severanceResult.noticeDays,
+                    })}
                   </span>
-                  <span className="font-mono font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-                    {formatCurrency(severanceResult.grossNotice, settings.currency)}
+                  <span
+                    dir="ltr"
+                    className="font-mono font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums shrink-0"
+                  >
+                    {formatCurrency(severanceResult.grossNotice, settings.currency, 0, language)}
                   </span>
                 </div>
               )}
 
               <p className="pt-1 text-[11px] text-[#77827B] dark:text-[#929B95] leading-relaxed">
-                Bilgi: Kıdem tazminatında yürürlükteki resmi kıdem tavanı ve ihbar tazminatında gelir vergisi dilimi değişkenlik gösterebilir.
+                {t.calculators.severanceNote}
               </p>
             </div>
           </div>
@@ -488,17 +543,19 @@ export const CalculatorsPage: React.FC = () => {
         <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-5">
           <div>
             <h2 className="text-base font-bold text-[#17221B] dark:text-[#F4F7F5]">
-              Hızlı Mesai Hesaplama
+              {t.calculators.overtimeTitle}
             </h2>
             <p className="text-xs text-[#77827B] dark:text-[#929B95]">
-              Kayıt eklemeden farklı maaş veya saat senaryolarının getirisini hesapla
+              {t.calculators.overtimeDesc}
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                Aylık maaş ({settings.currency})
+                {formatTemplate(t.calculators.monthlySalaryLabel, {
+                  currency: settings.currency,
+                })}
               </label>
               <NumericInput
                 allowDecimal
@@ -510,7 +567,7 @@ export const CalculatorsPage: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                Haftalık normal saat
+                {t.calculators.weeklyNormalHours}
               </label>
               <NumericInput
                 allowDecimal
@@ -522,7 +579,7 @@ export const CalculatorsPage: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                Fazla mesai (saat)
+                {t.calculators.overtimeHoursLabel}
               </label>
               <NumericInput
                 allowDecimal
@@ -538,40 +595,50 @@ export const CalculatorsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setSimRate(50)}
+              dir="ltr"
               className={`min-h-[44px] rounded-2xl font-semibold text-sm transition-colors ${
                 simRate === 50
                   ? 'bg-[#D97706] dark:bg-[#F59E0B] text-white dark:text-[#101211]'
                   : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
               }`}
             >
-              %50 (1.5x)
+              {language === 'tr' ? '%50 (1.5x)' : '50% (1.5x)'}
             </button>
             <button
               type="button"
               onClick={() => setSimRate(100)}
+              dir="ltr"
               className={`min-h-[44px] rounded-2xl font-semibold text-sm transition-colors ${
                 simRate === 100
                   ? 'bg-[#7C3AED] dark:bg-[#A78BFA] text-white dark:text-[#101211]'
                   : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
               }`}
             >
-              %100 (2.0x)
+              {language === 'tr' ? '%100 (2.0x)' : '100% (2.0x)'}
             </button>
           </div>
 
           <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-5 flex items-center justify-between gap-4">
             <div>
               <p className="text-xs text-[#77827B] dark:text-[#929B95]">
-                Kazanılacak ek mesai tutarı
+                {t.calculators.earnedOvertimeAmount}
               </p>
-              <p className="mt-1 font-display text-2xl sm:text-3xl font-extrabold text-[#159B61] dark:text-[#39D98A] tabular-nums">
-                +{formatCurrency(overtimeSimResult.total, settings.currency)}
+              <p
+                dir="ltr"
+                className="mt-1 font-display text-2xl sm:text-3xl font-extrabold text-[#159B61] dark:text-[#39D98A] tabular-nums"
+              >
+                +{formatCurrency(overtimeSimResult.total, settings.currency, 0, language)}
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-[#77827B] dark:text-[#929B95]">Normal saatlik</p>
-              <p className="mt-1 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-                {formatCurrency(overtimeSimResult.hourly, settings.currency, 2)}
+            <div className="text-end">
+              <p className="text-xs text-[#77827B] dark:text-[#929B95]">
+                {t.calculators.normalHourly}
+              </p>
+              <p
+                dir="ltr"
+                className="mt-1 font-mono text-sm font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums"
+              >
+                {formatCurrency(overtimeSimResult.hourly, settings.currency, 2, language)}
               </p>
             </div>
           </div>
@@ -583,17 +650,17 @@ export const CalculatorsPage: React.FC = () => {
         <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-5">
           <div>
             <h2 className="text-base font-bold text-[#17221B] dark:text-[#F4F7F5]">
-              Yıllık İzin Hakkı & Ücret Karşılığı
+              {t.calculators.leaveTitle}
             </h2>
             <p className="text-xs text-[#77827B] dark:text-[#929B95]">
-              Kıdem yılına göre yasal yıllık izin süresi ve kullanılmayan gün ücreti
+              {t.calculators.leaveDesc}
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                Çalışma yılı
+                {t.calculators.tenureYears}
               </label>
               <NumericInput
                 allowDecimal
@@ -605,7 +672,7 @@ export const CalculatorsPage: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                Kullanılmayan izin (gün)
+                {t.calculators.unusedLeaveDays}
               </label>
               <NumericInput
                 allowDecimal
@@ -617,7 +684,9 @@ export const CalculatorsPage: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                Aylık maaş ({settings.currency})
+                {formatTemplate(t.calculators.monthlySalaryLabel, {
+                  currency: settings.currency,
+                })}
               </label>
               <NumericInput
                 allowDecimal
@@ -632,22 +701,27 @@ export const CalculatorsPage: React.FC = () => {
           <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-5 space-y-3">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-[#77827B] dark:text-[#929B95]">Yıllık izin hakkın</p>
+                <p className="text-xs text-[#77827B] dark:text-[#929B95]">
+                  {t.calculators.annualLeaveEntitlement}
+                </p>
                 <p className="mt-1 font-display text-2xl font-extrabold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-                  {leaveResult.entitledDays} iş günü
+                  {leaveResult.entitledDays} {t.common.workDaysUnit}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-[#77827B] dark:text-[#929B95]">
-                  Kullanılmayan izin tutarı
+                  {t.calculators.unusedLeavePayout}
                 </p>
-                <p className="mt-1 font-display text-2xl font-extrabold text-[#159B61] dark:text-[#39D98A] tabular-nums">
-                  {formatCurrency(leaveResult.payout, settings.currency)}
+                <p
+                  dir="ltr"
+                  className="mt-1 font-display text-2xl font-extrabold text-[#159B61] dark:text-[#39D98A] tabular-nums"
+                >
+                  {formatCurrency(leaveResult.payout, settings.currency, 0, language)}
                 </p>
               </div>
             </div>
             <p className="pt-2 border-t border-[#CFD8D2] dark:border-white/[0.06] text-[11px] text-[#77827B] dark:text-[#929B95]">
-              1–5 yıl: 14 gün · 5–15 yıl: 20 gün · 15 yıl ve üzeri: 26 gün (18 yaş altı ve 50 yaş üstü çalışanlar için en az 20 iş günü).
+              {t.calculators.leaveNote}
             </p>
           </div>
         </section>

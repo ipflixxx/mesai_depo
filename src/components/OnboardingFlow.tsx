@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useMesai } from '../context/MesaiContext';
 import { MesaiWordmark } from './MesaiWordmark';
 import { NumericInput, parseLocaleNumber } from './NumericInput';
+import { AppLanguage, SUPPORTED_LANGUAGES, formatTemplate } from '../i18n';
 import { CurrencyCode, SalaryType, ThemeMode, UserSettings } from '../types/mesai';
 import {
   DEFAULT_SETTINGS,
@@ -14,7 +15,8 @@ import {
 const TOTAL_STEPS = 4;
 
 export const OnboardingFlow: React.FC = () => {
-  const { settings, completeOnboarding, updateSettings } = useMesai();
+  const { settings, completeOnboarding, updateSettings, language, isRtl, t, setLanguage } =
+    useMesai();
   const [step, setStep] = useState<number>(1);
   const [isDone, setIsDone] = useState<boolean>(false);
 
@@ -97,11 +99,11 @@ export const OnboardingFlow: React.FC = () => {
       const parsedSalary = parseLocaleNumber(salaryText);
       const parsedPayDay = parseLocaleNumber(paymentDayText);
       if (!form.userName.trim()) {
-        setError('Lütfen adınızı girin.');
+        setError(t.onboarding.errors.nameRequired);
         return;
       }
       if (parsedSalary === null || parsedSalary <= 0) {
-        setError('Lütfen geçerli bir aylık maaş tutarı girin.');
+        setError(t.onboarding.errors.salaryRequired);
         return;
       }
       if (
@@ -110,7 +112,7 @@ export const OnboardingFlow: React.FC = () => {
         parsedPayDay < 1 ||
         parsedPayDay > 31
       ) {
-        setError('Lütfen 1 ile 31 arasında bir maaş ödeme günü girin.');
+        setError(t.onboarding.errors.paymentDayRange);
         return;
       }
       setForm((prev) => ({
@@ -127,19 +129,19 @@ export const OnboardingFlow: React.FC = () => {
       const parsedBreak = parseLocaleNumber(breakMinutesText);
 
       if (parsedDays === null || !Number.isInteger(parsedDays) || parsedDays < 1 || parsedDays > 7) {
-        setError('Haftalık çalışma günü 1 ile 7 arasında olmalıdır.');
+        setError(t.onboarding.errors.weeklyDaysRange);
         return;
       }
       if (parsedDaily === null || parsedDaily < 1 || parsedDaily > 24) {
-        setError('Günlük çalışma süresi 1 ile 24 saat arasında olmalıdır.');
+        setError(t.onboarding.errors.dailyHoursRange);
         return;
       }
       if (parsedWeekly === null || parsedWeekly < 1 || parsedWeekly > 100) {
-        setError('Haftalık toplam normal saat 1 ile 100 arasında olmalıdır.');
+        setError(t.onboarding.errors.weeklyHoursRange);
         return;
       }
       if (parsedBreak === null || parsedBreak < 0 || parsedBreak > 240) {
-        setError('Günlük mola süresi 0 ile 240 dakika arasında olmalıdır.');
+        setError(t.onboarding.errors.breakRange);
         return;
       }
 
@@ -157,11 +159,11 @@ export const OnboardingFlow: React.FC = () => {
       const parsedWk = parseLocaleNumber(weekendMultiplierText);
 
       if (parsedOt === null || parsedOt < 1) {
-        setError('Fazla mesai çarpanı en az 1.0 olmalıdır.');
+        setError(t.onboarding.errors.otMultiplierMin);
         return;
       }
       if (parsedWk === null || parsedWk < 1) {
-        setError('Hafta sonu ve tatil çarpanı en az 1.0 olmalıdır.');
+        setError(t.onboarding.errors.wkMultiplierMin);
         return;
       }
 
@@ -183,6 +185,7 @@ export const OnboardingFlow: React.FC = () => {
     const parsedSalary = parseLocaleNumber(salaryText) ?? form.monthlySalary;
     await completeOnboarding({
       ...form,
+      language: settings.language,
       monthlySalary: parsedSalary,
       onboardingCompleted: true,
     });
@@ -209,28 +212,42 @@ export const OnboardingFlow: React.FC = () => {
             <Check className="w-7 h-7 text-[#159B61] dark:text-[#39D98A]" />
           </div>
           <h1 className="text-2xl font-bold text-[#17221B] dark:text-[#F4F7F5] tracking-tight">
-            Her şey hazır!
+            {t.onboarding.doneTitle}
           </h1>
           <p className="mt-2 text-sm text-[#77827B] dark:text-[#929B95] leading-relaxed">
-            Çalışma düzenin kaydedildi. Artık mesailerini girerek kazancını anında takip edebilirsin.
+            {t.onboarding.doneSubtitle}
           </p>
 
-          <div className="mt-6 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-4 text-left space-y-2.5">
+          <div className="mt-6 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] p-4 text-start space-y-2.5">
             <div className="flex items-center justify-between text-xs text-[#77827B] dark:text-[#929B95]">
-              <span>Aylık maaş</span>
-              <span className="font-mono font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-                {formatCurrency(parseLocaleNumber(salaryText) ?? form.monthlySalary, form.currency)}
+              <span>{t.onboarding.doneMonthlySalary}</span>
+              <span
+                dir="ltr"
+                className="font-mono font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums"
+              >
+                {formatCurrency(
+                  parseLocaleNumber(salaryText) ?? form.monthlySalary,
+                  form.currency,
+                  0,
+                  language
+                )}
               </span>
             </div>
             <div className="flex items-center justify-between text-xs text-[#77827B] dark:text-[#929B95]">
-              <span>Hesaplanan saatlik ücret</span>
-              <span className="font-mono font-semibold text-[#159B61] dark:text-[#39D98A] tabular-nums">
-                {formatCurrency(hourlyPreview, form.currency, 2)} / sa
+              <span>{t.onboarding.doneHourlyRate}</span>
+              <span
+                dir="ltr"
+                className="font-mono font-semibold text-[#159B61] dark:text-[#39D98A] tabular-nums"
+              >
+                {formatCurrency(hourlyPreview, form.currency, 2, language)} / {t.common.hoursShort}
               </span>
             </div>
             <div className="flex items-center justify-between text-xs text-[#77827B] dark:text-[#929B95]">
-              <span>Fazla mesai çarpanı</span>
-              <span className="font-mono font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
+              <span>{t.onboarding.doneOvertimeMultiplier}</span>
+              <span
+                dir="ltr"
+                className="font-mono font-semibold text-[#17221B] dark:text-[#F4F7F5] tabular-nums"
+              >
                 {form.overtimeMultiplier}x
               </span>
             </div>
@@ -241,7 +258,7 @@ export const OnboardingFlow: React.FC = () => {
             onClick={handleFinish}
             className="mt-6 w-full min-h-[48px] rounded-2xl bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211] font-semibold text-sm tracking-tight transition-transform active:scale-[0.98]"
           >
-            Ana Ekrana Geç
+            {t.onboarding.goHome}
           </button>
         </motion.div>
       </div>
@@ -251,21 +268,35 @@ export const OnboardingFlow: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#F6F8F6] dark:bg-[#101211] px-4 py-6 sm:py-10 pt-safe pb-safe">
       <div className="w-full max-w-lg mx-auto">
-        {/* Brand & Progress */}
-        <div className="flex items-center justify-between mb-8">
+        {/* Brand, Language Switcher & Progress */}
+        <div className="flex items-center justify-between gap-2 mb-8">
           <MesaiWordmark size="sm" />
-          <span className="font-mono text-xs text-[#77827B] dark:text-[#929B95] tabular-nums">
-            Adım {step} / {TOTAL_STEPS}
-          </span>
+          <div className="flex items-center gap-2.5">
+            <select
+              aria-label={t.onboarding.languageLabel}
+              value={language}
+              onChange={(e) => void setLanguage(e.target.value as AppLanguage)}
+              className="min-h-[34px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 text-xs font-medium text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
+            >
+              {SUPPORTED_LANGUAGES.map((langMeta) => (
+                <option key={langMeta.code} value={langMeta.code}>
+                  {langMeta.nativeName}
+                </option>
+              ))}
+            </select>
+            <span className="font-mono text-xs text-[#77827B] dark:text-[#929B95] tabular-nums whitespace-nowrap">
+              {formatTemplate(t.onboarding.stepOf, { step, total: TOTAL_STEPS })}
+            </span>
+          </div>
         </div>
 
         {/* Hero Heading */}
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-[#17221B] dark:text-[#F4F7F5] tracking-tight text-balance">
-            Mesaini ve kazancını kontrol altına al.
+            {t.onboarding.heroTitle}
           </h1>
           <p className="mt-2 text-sm text-[#77827B] dark:text-[#929B95]">
-            Çalışma düzenini tanımla, kazancını otomatik hesaplayalım.
+            {t.onboarding.heroSubtitle}
           </p>
         </div>
 
@@ -288,9 +319,9 @@ export const OnboardingFlow: React.FC = () => {
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
-              initial={{ opacity: 0, x: 10 }}
+              initial={{ opacity: 0, x: isRtl ? -10 : 10 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
+              exit={{ opacity: 0, x: isRtl ? 10 : -10 }}
               transition={{ duration: 0.18 }}
               className="space-y-5"
             >
@@ -298,36 +329,36 @@ export const OnboardingFlow: React.FC = () => {
                 <>
                   <div>
                     <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-                      Maaş bilgileri
+                      {t.onboarding.step1Title}
                     </h2>
                     <p className="text-xs text-[#77827B] dark:text-[#929B95] mt-0.5">
-                      Saatlik ücretini ve sabit gelirini hesaplamak için kullanılır.
+                      {t.onboarding.step1Subtitle}
                     </p>
                   </div>
 
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                        Adın
+                        {t.onboarding.yourName}
                       </label>
                       <input
                         type="text"
                         value={form.userName}
                         onChange={(e) => setForm({ ...form, userName: e.target.value })}
-                        placeholder="Örn. Emre"
+                        placeholder={t.onboarding.namePlaceholder}
                         className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 text-sm text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                       />
                     </div>
 
                     <div>
                       <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                        Aylık maaş
+                        {t.onboarding.monthlySalary}
                       </label>
                       <NumericInput
                         allowDecimal
                         value={salaryText}
                         onChange={setSalaryText}
-                        placeholder="Örn. 35000"
+                        placeholder={t.onboarding.salaryPlaceholder}
                         className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-semibold text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                       />
                     </div>
@@ -335,7 +366,7 @@ export const OnboardingFlow: React.FC = () => {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                          Maaş türü
+                          {t.onboarding.salaryType}
                         </label>
                         <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07]">
                           {(['net', 'gross'] as SalaryType[]).map((type) => (
@@ -349,7 +380,7 @@ export const OnboardingFlow: React.FC = () => {
                                   : 'text-[#77827B] dark:text-[#929B95]'
                               }`}
                             >
-                              {type === 'net' ? 'Net' : 'Brüt'}
+                              {type === 'net' ? t.common.net : t.common.gross}
                             </button>
                           ))}
                         </div>
@@ -357,7 +388,7 @@ export const OnboardingFlow: React.FC = () => {
 
                       <div>
                         <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                          Para birimi
+                          {t.onboarding.currency}
                         </label>
                         <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07]">
                           {(['TRY', 'USD', 'EUR'] as CurrencyCode[]).map((cur) => (
@@ -380,7 +411,7 @@ export const OnboardingFlow: React.FC = () => {
 
                     <div>
                       <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                        Maaş ödeme günü (Ayın günü)
+                        {t.onboarding.paymentDay}
                       </label>
                       <NumericInput
                         value={paymentDayText}
@@ -397,10 +428,10 @@ export const OnboardingFlow: React.FC = () => {
                 <>
                   <div>
                     <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-                      Çalışma düzeni
+                      {t.onboarding.step2Title}
                     </h2>
                     <p className="text-xs text-[#77827B] dark:text-[#929B95] mt-0.5">
-                      Normal mesai sınırlarını ve varsayılan mola süreni belirle.
+                      {t.onboarding.step2Subtitle}
                     </p>
                   </div>
 
@@ -408,7 +439,7 @@ export const OnboardingFlow: React.FC = () => {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                          Haftalık çalışma günü
+                          {t.onboarding.weeklyWorkDays}
                         </label>
                         <NumericInput
                           value={weeklyWorkDaysText}
@@ -420,7 +451,7 @@ export const OnboardingFlow: React.FC = () => {
 
                       <div>
                         <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                          Günlük çalışma (saat)
+                          {t.onboarding.dailyWorkHours}
                         </label>
                         <NumericInput
                           allowDecimal
@@ -434,7 +465,7 @@ export const OnboardingFlow: React.FC = () => {
 
                     <div>
                       <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                        Haftalık toplam normal saat
+                        {t.onboarding.weeklyNormalHours}
                       </label>
                       <NumericInput
                         allowDecimal
@@ -448,10 +479,11 @@ export const OnboardingFlow: React.FC = () => {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                          Mesai başlangıç
+                          {t.onboarding.workStart}
                         </label>
                         <input
                           type="time"
+                          dir="ltr"
                           value={form.workStartTime}
                           onChange={(e) =>
                             setForm({ ...form, workStartTime: e.target.value })
@@ -461,10 +493,11 @@ export const OnboardingFlow: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                          Mesai bitiş
+                          {t.onboarding.workEnd}
                         </label>
                         <input
                           type="time"
+                          dir="ltr"
                           value={form.workEndTime}
                           onChange={(e) =>
                             setForm({ ...form, workEndTime: e.target.value })
@@ -476,7 +509,7 @@ export const OnboardingFlow: React.FC = () => {
 
                     <div>
                       <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                        Günlük mola süresi (dakika)
+                        {t.onboarding.dailyBreakMinutes}
                       </label>
                       <NumericInput
                         value={breakMinutesText}
@@ -493,17 +526,17 @@ export const OnboardingFlow: React.FC = () => {
                 <>
                   <div>
                     <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-                      Fazla mesai çarpanları
+                      {t.onboarding.step3Title}
                     </h2>
                     <p className="text-xs text-[#77827B] dark:text-[#929B95] mt-0.5">
-                      Ek mesai ve hafta sonu kazanç katsayılarını ayarla.
+                      {t.onboarding.step3Subtitle}
                     </p>
                   </div>
 
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                        Fazla mesai saatlik ücret çarpanı
+                        {t.onboarding.overtimeMultiplier}
                       </label>
                       <div className="flex gap-2">
                         {[1.25, 1.5, 2.0].map((val) => {
@@ -513,6 +546,7 @@ export const OnboardingFlow: React.FC = () => {
                               key={val}
                               type="button"
                               onClick={() => setOvertimeMultiplierText(String(val))}
+                              dir="ltr"
                               className={`flex-1 min-h-[44px] rounded-xl font-mono text-sm font-medium transition-colors ${
                                 parsedOt === val
                                   ? 'bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211]'
@@ -535,7 +569,7 @@ export const OnboardingFlow: React.FC = () => {
 
                     <div>
                       <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                        Hafta sonu & resmî tatil çarpanı
+                        {t.onboarding.weekendMultiplier}
                       </label>
                       <div className="flex gap-2">
                         {[1.5, 2.0, 2.5].map((val) => {
@@ -545,6 +579,7 @@ export const OnboardingFlow: React.FC = () => {
                               key={val}
                               type="button"
                               onClick={() => setWeekendMultiplierText(String(val))}
+                              dir="ltr"
                               className={`flex-1 min-h-[44px] rounded-xl font-mono text-sm font-medium transition-colors ${
                                 parsedWk === val
                                   ? 'bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211]'
@@ -567,7 +602,7 @@ export const OnboardingFlow: React.FC = () => {
 
                     <div>
                       <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                        Normal mesai aşım hesaplama yöntemi
+                        {t.onboarding.overtimeCalcMode}
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         <button
@@ -581,7 +616,9 @@ export const OnboardingFlow: React.FC = () => {
                               : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                           }`}
                         >
-                          Günlük hedef ({parseLocaleNumber(dailyWorkHoursText) ?? form.dailyWorkHours} sa)
+                          {formatTemplate(t.onboarding.dailyTarget, {
+                            hours: parseLocaleNumber(dailyWorkHoursText) ?? form.dailyWorkHours,
+                          })}
                         </button>
                         <button
                           type="button"
@@ -594,7 +631,9 @@ export const OnboardingFlow: React.FC = () => {
                               : 'bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5]'
                           }`}
                         >
-                          Haftalık hedef ({parseLocaleNumber(weeklyWorkHoursText) ?? form.weeklyWorkHours} sa)
+                          {formatTemplate(t.onboarding.weeklyTarget, {
+                            hours: parseLocaleNumber(weeklyWorkHoursText) ?? form.weeklyWorkHours,
+                          })}
                         </button>
                       </div>
                     </div>
@@ -606,10 +645,10 @@ export const OnboardingFlow: React.FC = () => {
                 <>
                   <div>
                     <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-                      Görünüm teması
+                      {t.onboarding.step4Title}
                     </h2>
                     <p className="text-xs text-[#77827B] dark:text-[#929B95] mt-0.5">
-                      Gözüne en rahat gelen temayı seç, istediğin zaman Ayarlar’dan değiştirebilirsin.
+                      {t.onboarding.step4Subtitle}
                     </p>
                   </div>
 
@@ -618,20 +657,20 @@ export const OnboardingFlow: React.FC = () => {
                       [
                         {
                           id: 'dark',
-                          label: 'Koyu',
-                          desc: 'Yüksek kontrastlı gece dostu arayüz',
+                          label: t.onboarding.themeDark,
+                          desc: t.onboarding.themeDarkDesc,
                           icon: Moon,
                         },
                         {
                           id: 'light',
-                          label: 'Açık',
-                          desc: 'Gün ışığında yüksek okunabilirlik',
+                          label: t.onboarding.themeLight,
+                          desc: t.onboarding.themeLightDesc,
                           icon: Sun,
                         },
                         {
                           id: 'system',
-                          label: 'Sistem',
-                          desc: 'Cihazının tema tercihini otomatik izler',
+                          label: t.onboarding.themeSystem,
+                          desc: t.onboarding.themeSystemDesc,
                           icon: Smartphone,
                         },
                       ] as const
@@ -643,7 +682,7 @@ export const OnboardingFlow: React.FC = () => {
                           key={opt.id}
                           type="button"
                           onClick={() => handleThemeSelect(opt.id)}
-                          className={`w-full min-h-[60px] flex items-center justify-between rounded-2xl p-4 border text-left transition-colors ${
+                          className={`w-full min-h-[60px] flex items-center justify-between rounded-2xl p-4 border text-start transition-colors ${
                             active
                               ? 'border-[#159B61] dark:border-[#39D98A] bg-[#159B61]/8 dark:bg-[#39D98A]/10'
                               : 'border-[#CFD8D2] dark:border-white/[0.07] bg-[#EEF2EF]/75 dark:bg-[#222925]/60'
@@ -697,8 +736,8 @@ export const OnboardingFlow: React.FC = () => {
                 }}
                 className="min-h-[48px] px-4 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5] text-sm font-medium flex items-center justify-center gap-1.5"
               >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Geri</span>
+                <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+                <span>{t.common.back}</span>
               </button>
             )}
             <button
@@ -706,15 +745,15 @@ export const OnboardingFlow: React.FC = () => {
               onClick={validateAndNext}
               className="flex-1 min-h-[48px] px-5 rounded-2xl bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211] text-sm font-semibold flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
             >
-              <span>{step === TOTAL_STEPS ? 'Kurulumu Tamamla' : 'Devam Et'}</span>
-              <ArrowRight className="w-4 h-4" />
+              <span>{step === TOTAL_STEPS ? t.onboarding.finishSetup : t.common.continueBtn}</span>
+              <ArrowRight className="w-4 h-4 rtl:rotate-180" />
             </button>
           </div>
         </div>
       </div>
 
       <p className="mt-6 text-center text-xs text-[#77827B] dark:text-[#929B95]">
-        Zamanını takip et, emeğinin karşılığını gör.
+        {t.onboarding.tagline}
       </p>
     </div>
   );

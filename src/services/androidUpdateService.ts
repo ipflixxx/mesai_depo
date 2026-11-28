@@ -6,6 +6,7 @@ import {
   DEFAULT_DISTRIBUTION_CHANNEL,
   RELEASES_MANIFEST_URL,
 } from '../config/appInfo';
+import { AppLanguage, formatTemplate, getTranslations } from '../i18n';
 import { isNativeAndroidPlatform, MesaiUpdater } from '../native/mesaiUpdater';
 import {
   AppRuntimeInfo,
@@ -65,31 +66,36 @@ export function isTrustedApkUrl(url: string): boolean {
   return ALLOWED_APK_URL_PREFIXES.some((prefix) => url.startsWith(prefix));
 }
 
-export function validateReleaseManifest(raw: unknown): ReleaseManifest {
+export function validateReleaseManifest(
+  raw: unknown,
+  lang: AppLanguage = 'tr'
+): ReleaseManifest {
+  const errs = getTranslations(lang).updater.serviceErrors;
+
   if (!raw || typeof raw !== 'object') {
-    throw new Error('Geçersiz sürüm manifesti formatı.');
+    throw new Error(errs.invalidManifest);
   }
 
   const obj = raw as Record<string, unknown>;
   const appId = typeof obj.appId === 'string' ? obj.appId.trim() : '';
   if (appId !== APP_ID) {
-    throw new Error('Manifest uygulama kimliği eşleşmiyor.');
+    throw new Error(errs.appIdMismatch);
   }
 
   const versionName = typeof obj.versionName === 'string' ? obj.versionName.trim() : '';
   const versionCode = Number(obj.versionCode);
   if (!versionName || !Number.isInteger(versionCode) || versionCode <= 0) {
-    throw new Error('Geçersiz sürüm numarası.');
+    throw new Error(errs.invalidVersion);
   }
 
   const apkUrl = typeof obj.apkUrl === 'string' ? obj.apkUrl.trim() : '';
   if (!apkUrl || !isTrustedApkUrl(apkUrl)) {
-    throw new Error('Güvenilir olmayan APK indirme adresi.');
+    throw new Error(errs.untrustedUrl);
   }
 
   const sha256 = typeof obj.sha256 === 'string' ? obj.sha256.trim().toLowerCase() : '';
   if (!isValidSha256(sha256)) {
-    throw new Error('Eksik veya geçersiz SHA-256 doğrulama özeti.');
+    throw new Error(errs.invalidSha256);
   }
 
   let releaseNotes: string[] = [];
@@ -128,10 +134,12 @@ export function validateReleaseManifest(raw: unknown): ReleaseManifest {
 }
 
 export async function checkForAndroidUpdate(
-  runtimeInfo?: AppRuntimeInfo
+  runtimeInfo?: AppRuntimeInfo,
+  lang: AppLanguage = 'tr'
 ): Promise<UpdateCheckResult> {
   const info = runtimeInfo ?? (await getAppRuntimeInfo());
   const checkedAt = new Date().toISOString();
+  const errs = getTranslations(lang).updater.serviceErrors;
 
   // Google Play distribution uses Google Play In-App Update API only
   if (info.channel === 'play') {
@@ -168,10 +176,7 @@ export async function checkForAndroidUpdate(
         currentVersionCode: info.versionCode,
         manifest: null,
         checkedAt,
-        error:
-          err instanceof Error
-            ? err.message
-            : 'Google Play güncelleme durumu kontrol edilemedi.',
+        error: err instanceof Error ? err.message : errs.playCheckFailed,
       };
     }
   }
@@ -192,16 +197,16 @@ export async function checkForAndroidUpdate(
         currentVersionCode: info.versionCode,
         manifest: null,
         checkedAt,
-        error: 'Henüz yayınlanmış bir APK sürümü bulunamadı.',
+        error: errs.noReleaseYet,
       };
     }
 
     if (!response.ok) {
-      throw new Error(`Sürüm sunucusu yanıt vermedi (HTTP ${response.status}).`);
+      throw new Error(formatTemplate(errs.serverHttpError, { status: response.status }));
     }
 
     const raw = await response.json();
-    const manifest = validateReleaseManifest(raw);
+    const manifest = validateReleaseManifest(raw, lang);
 
     const newerByCode = manifest.versionCode > info.versionCode;
     const newerBySemver =
@@ -233,10 +238,7 @@ export async function checkForAndroidUpdate(
       currentVersionCode: info.versionCode,
       manifest: null,
       checkedAt,
-      error:
-        err instanceof Error
-          ? err.message
-          : 'Güncelleme kontrolü sırasında bağlantı hatası oluştu.',
+      error: err instanceof Error ? err.message : errs.connectionError,
     };
   }
 }

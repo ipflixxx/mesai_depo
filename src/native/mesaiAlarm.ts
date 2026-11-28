@@ -1,7 +1,23 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import type { PluginListenerHandle } from '@capacitor/core';
+import { AppLanguage, getTranslations } from '../i18n';
 import { MesaiAlarmSettings } from '../types/mesai';
 import { isNativeAndroidPlatform } from './mesaiUpdater';
+
+export type AlarmNotificationStrings = {
+  channelName: string;
+  channelDesc: string;
+  fallbackChannelName: string;
+  fallbackChannelDesc: string;
+  titleReminder: string;
+  bodyReminder: string;
+  titleTest: string;
+  bodyTestRinging: string;
+  titleTestDone: string;
+  bodyTestDone: string;
+  bodyTestFallback: string;
+  stopAction: string;
+};
 
 export interface NativeAlarmStatus {
   enabled: boolean;
@@ -18,9 +34,13 @@ export interface NativeAlarmStatus {
   timeZoneId: string;
 }
 
+export interface SaveAlarmConfigOptions extends MesaiAlarmSettings {
+  notificationStrings?: AlarmNotificationStrings;
+}
+
 export interface MesaiAlarmPlugin {
   getAlarmStatus(): Promise<NativeAlarmStatus>;
-  saveAlarmConfig(options: MesaiAlarmSettings): Promise<NativeAlarmStatus>;
+  saveAlarmConfig(options: SaveAlarmConfigOptions): Promise<NativeAlarmStatus>;
   syncRecordedDates(options: { dates: string[] }): Promise<NativeAlarmStatus>;
   testAlarm(): Promise<NativeAlarmStatus>;
   stopAlarm(): Promise<NativeAlarmStatus>;
@@ -107,11 +127,16 @@ export async function getNativeAlarmStatus(
 
 export async function saveNativeAlarmConfig(
   config: MesaiAlarmSettings,
-  recordedDates: string[]
+  recordedDates: string[],
+  lang: AppLanguage = 'tr'
 ): Promise<NativeAlarmStatus> {
   if (isNativeAndroidPlatform()) {
     try {
-      return await MesaiAlarm.saveAlarmConfig(config);
+      const notificationStrings = getTranslations(lang).alarm.native;
+      return await MesaiAlarm.saveAlarmConfig({
+        ...config,
+        notificationStrings: { ...notificationStrings },
+      });
     } catch {
       // Fallback below
     }

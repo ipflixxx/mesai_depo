@@ -2,15 +2,17 @@ import React, { useState } from 'react';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
 import { useMesai } from '../context/MesaiContext';
 import {
-  WORK_TYPE_LABELS,
   formatCurrency,
   formatDuration,
-  formatTurkishDate,
+  formatLocalizedDate,
+  getWorkTypeLabel,
 } from '../utils/calculations';
 
 export const DeleteEntryConfirmModal: React.FC = () => {
   const {
     settings,
+    language,
+    t,
     pendingDeleteEntry,
     cancelDeleteEntry,
     confirmDeleteEntry,
@@ -57,10 +59,10 @@ export const DeleteEntryConfirmModal: React.FC = () => {
                 id="delete-entry-modal-title"
                 className="text-base font-bold text-[#17221B] dark:text-[#F4F7F5]"
               >
-                Mesai Kaydını Sil
+                {t.deleteModal.title}
               </h2>
               <p className="text-xs text-[#77827B] dark:text-[#929B95]">
-                Bu işlem geri alınamaz.
+                {t.deleteModal.irreversible}
               </p>
             </div>
           </div>
@@ -69,7 +71,7 @@ export const DeleteEntryConfirmModal: React.FC = () => {
             type="button"
             onClick={cancelDeleteEntry}
             disabled={isDeleting}
-            aria-label="Kapat"
+            aria-label={t.common.close}
             className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-xl text-[#77827B] dark:text-[#929B95] hover:bg-[#EEF2EF] dark:hover:bg-[#222925] disabled:opacity-40"
           >
             <X className="w-4 h-4" />
@@ -77,27 +79,28 @@ export const DeleteEntryConfirmModal: React.FC = () => {
         </div>
 
         <p className="text-xs sm:text-[13px] text-[#2A302D] dark:text-[#E5EAE7] leading-relaxed">
-          Bu mesai kaydını kalıcı olarak silmek istediğinize emin misiniz? Toplam çalışma süresi ve kazanç değerleri otomatik güncellenecektir.
+          {t.deleteModal.confirmBody}
         </p>
 
         <div className="rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5] truncate">
-              {formatTurkishDate(pendingDeleteEntry.date)}
+              {formatLocalizedDate(pendingDeleteEntry.date, false, language)}
             </p>
             <p className="text-[11px] text-[#77827B] dark:text-[#929B95] truncate mt-0.5">
-              {WORK_TYPE_LABELS[pendingDeleteEntry.workType]}
+              {getWorkTypeLabel(pendingDeleteEntry.workType, language)}
               {pendingDeleteEntry.notes ? ` · ${pendingDeleteEntry.notes}` : ''}
             </p>
           </div>
-          <div className="text-right shrink-0 font-mono text-xs tabular-nums">
+          <div className="text-end shrink-0 font-mono text-xs tabular-nums">
             {!isLeave && (
               <p className="text-[#77827B] dark:text-[#929B95]">
-                {formatDuration(pendingDeleteEntry.calculatedDurationMinutes)}
+                {formatDuration(pendingDeleteEntry.calculatedDurationMinutes, language)}
               </p>
             )}
             {pendingDeleteEntry.estimatedEarnings !== 0 && (
               <p
+                dir="ltr"
                 className={`font-bold ${
                   pendingDeleteEntry.estimatedEarnings < 0
                     ? 'text-red-600 dark:text-red-400'
@@ -105,7 +108,7 @@ export const DeleteEntryConfirmModal: React.FC = () => {
                 }`}
               >
                 {pendingDeleteEntry.estimatedEarnings > 0 ? '+' : ''}
-                {formatCurrency(pendingDeleteEntry.estimatedEarnings, settings.currency)}
+                {formatCurrency(pendingDeleteEntry.estimatedEarnings, settings.currency, 0, language)}
               </p>
             )}
           </div>
@@ -118,7 +121,7 @@ export const DeleteEntryConfirmModal: React.FC = () => {
             disabled={isDeleting}
             className="flex-1 min-h-[46px] rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity disabled:opacity-40"
           >
-            Vazgeç
+            {t.common.cancel}
           </button>
           <button
             type="button"
@@ -127,7 +130,7 @@ export const DeleteEntryConfirmModal: React.FC = () => {
             className="flex-1 min-h-[46px] rounded-2xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-40"
           >
             <Trash2 className="w-4 h-4" />
-            <span>{isDeleting ? 'Siliniyor...' : 'Sil'}</span>
+            <span>{isDeleting ? t.common.deleting : t.common.delete}</span>
           </button>
         </div>
       </div>

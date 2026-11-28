@@ -1,3 +1,4 @@
+import { isSupportedLanguage } from '../i18n';
 import { UserSettings, WorkEntry } from '../types/mesai';
 import { DEFAULT_SETTINGS } from '../utils/calculations';
 
@@ -105,6 +106,7 @@ export function loadSettingsSync(): UserSettings {
   return {
     ...DEFAULT_SETTINGS,
     ...(saved ?? {}),
+    language: isSupportedLanguage(saved?.language) ? saved.language : undefined,
     alarm: {
       enabled: saved?.alarm?.enabled ?? DEFAULT_SETTINGS.alarm!.enabled,
       hour: saved?.alarm?.hour ?? DEFAULT_SETTINGS.alarm!.hour,
@@ -135,6 +137,7 @@ class LocalHybridStorageRepository implements StorageRepository {
     const mergedSettings: UserSettings = {
       ...DEFAULT_SETTINGS,
       ...chosenSettings,
+      language: isSupportedLanguage(chosenSettings.language) ? chosenSettings.language : undefined,
       alarm: {
         enabled: chosenSettings.alarm?.enabled ?? DEFAULT_SETTINGS.alarm!.enabled,
         hour: chosenSettings.alarm?.hour ?? DEFAULT_SETTINGS.alarm!.hour,

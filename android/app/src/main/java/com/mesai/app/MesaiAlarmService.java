@@ -98,37 +98,47 @@ public class MesaiAlarmService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager nm = context.getSystemService(NotificationManager.class);
             if (nm == null) return;
-            if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-                NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "Mesai Hatırlatma Alarmı",
-                    NotificationManager.IMPORTANCE_HIGH
-                );
-                channel.setDescription("Günlük mesai kaydı hatırlatma alarm bildirimleri");
-                // Sound is controlled strictly by MesaiAlarmService for 5 seconds
-                channel.setSound(null, null);
-                channel.enableVibration(false);
-                nm.createNotificationChannel(channel);
+
+            String channelName = MesaiAlarmPrefs.getNotificationString(
+                context, "channelName", "Mesai Hatırlatma Alarmı"
+            );
+            String channelDesc = MesaiAlarmPrefs.getNotificationString(
+                context, "channelDesc", "Günlük mesai kaydı hatırlatma alarm bildirimleri"
+            );
+            NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID,
+                channelName,
+                NotificationManager.IMPORTANCE_HIGH
+            );
+            channel.setDescription(channelDesc);
+            // Sound is controlled strictly by MesaiAlarmService for 5 seconds
+            channel.setSound(null, null);
+            channel.enableVibration(false);
+            nm.createNotificationChannel(channel);
+
+            String fallbackName = MesaiAlarmPrefs.getNotificationString(
+                context, "fallbackChannelName", "Mesai Hatırlatma (Arka Plan)"
+            );
+            String fallbackDesc = MesaiAlarmPrefs.getNotificationString(
+                context, "fallbackChannelDesc", "Arka plan kısıtlaması durumunda sesli mesai hatırlatmaları"
+            );
+            NotificationChannel fallbackChannel = new NotificationChannel(
+                FALLBACK_CHANNEL_ID,
+                fallbackName,
+                NotificationManager.IMPORTANCE_HIGH
+            );
+            fallbackChannel.setDescription(fallbackDesc);
+            Uri soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+            if (soundUri == null) {
+                soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
             }
-            if (nm.getNotificationChannel(FALLBACK_CHANNEL_ID) == null) {
-                NotificationChannel fallbackChannel = new NotificationChannel(
-                    FALLBACK_CHANNEL_ID,
-                    "Mesai Hatırlatma (Arka Plan)",
-                    NotificationManager.IMPORTANCE_HIGH
-                );
-                fallbackChannel.setDescription("Arka plan kısıtlaması durumunda sesli mesai hatırlatmaları");
-                Uri soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-                if (soundUri == null) {
-                    soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-                }
-                AudioAttributes attrs = new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build();
-                fallbackChannel.setSound(soundUri, attrs);
-                fallbackChannel.enableVibration(true);
-                nm.createNotificationChannel(fallbackChannel);
-            }
+            AudioAttributes attrs = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build();
+            fallbackChannel.setSound(soundUri, attrs);
+            fallbackChannel.enableVibration(true);
+            nm.createNotificationChannel(fallbackChannel);
         }
     }
 
@@ -163,10 +173,17 @@ public class MesaiAlarmService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        String title = isTest ? "MESAİ Alarm Testi" : "Mesai Kaydı Hatırlatması";
+        String title = isTest
+            ? MesaiAlarmPrefs.getNotificationString(context, "titleTest", "MESAİ Alarm Testi")
+            : MesaiAlarmPrefs.getNotificationString(context, "titleReminder", "Mesai Kaydı Hatırlatması");
         String text = isTest
-            ? "Alarm sesi çalıyor (5 saniye sonra otomatik durur)."
-            : "Bugün için henüz mesai kaydı girilmedi. Kayıt girmek için dokunun.";
+            ? MesaiAlarmPrefs.getNotificationString(
+                context, "bodyTestRinging", "Alarm sesi çalıyor (5 saniye sonra otomatik durur)."
+            )
+            : MesaiAlarmPrefs.getNotificationString(
+                context, "bodyReminder", "Bugün için henüz mesai kaydı girilmedi. Kayıt girmek için dokunun."
+            );
+        String stopActionLabel = MesaiAlarmPrefs.getNotificationString(context, "stopAction", "Durdur");
 
         return new NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -180,15 +197,21 @@ public class MesaiAlarmService extends Service {
             .setAutoCancel(false)
             .setSilent(true)
             .setContentIntent(buildOpenAppIntent(context))
-            .addAction(0, "Durdur", stopPendingIntent)
+            .addAction(0, stopActionLabel, stopPendingIntent)
             .build();
     }
 
     private static Notification buildQuietReminderNotification(Context context, boolean isTest) {
-        String title = isTest ? "MESAİ Alarm Testi Tamamlandı" : "Mesai Kaydı Hatırlatması";
+        String title = isTest
+            ? MesaiAlarmPrefs.getNotificationString(context, "titleTestDone", "MESAİ Alarm Testi Tamamlandı")
+            : MesaiAlarmPrefs.getNotificationString(context, "titleReminder", "Mesai Kaydı Hatırlatması");
         String text = isTest
-            ? "Alarm sesi 5 saniyenin ardından otomatik durduruldu."
-            : "Bugün için henüz mesai kaydı bulunmuyor. Kayıt girmek için dokunun.";
+            ? MesaiAlarmPrefs.getNotificationString(
+                context, "bodyTestDone", "Alarm sesi 5 saniyenin ardından otomatik durduruldu."
+            )
+            : MesaiAlarmPrefs.getNotificationString(
+                context, "bodyReminder", "Bugün için henüz mesai kaydı bulunmuyor. Kayıt girmek için dokunun."
+            );
 
         return new NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -205,10 +228,14 @@ public class MesaiAlarmService extends Service {
     }
 
     private static Notification buildFallbackReminderNotification(Context context, boolean isTest) {
-        String title = isTest ? "MESAİ Alarm Testi" : "Mesai Kaydı Hatırlatması";
+        String title = isTest
+            ? MesaiAlarmPrefs.getNotificationString(context, "titleTest", "MESAİ Alarm Testi")
+            : MesaiAlarmPrefs.getNotificationString(context, "titleReminder", "Mesai Kaydı Hatırlatması");
         String text = isTest
-            ? "Test hatırlatma bildirimi."
-            : "Bugün için henüz mesai kaydı bulunmuyor. Kayıt girmek için dokunun.";
+            ? MesaiAlarmPrefs.getNotificationString(context, "bodyTestFallback", "Test hatırlatma bildirimi.")
+            : MesaiAlarmPrefs.getNotificationString(
+                context, "bodyReminder", "Bugün için henüz mesai kaydı bulunmuyor. Kayıt girmek için dokunun."
+            );
 
         Uri soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
         if (soundUri == null) {

@@ -150,6 +150,16 @@ final class MesaiAlarmPrefs {
             .commit();
     }
 
+    static void saveNotificationString(Context context, String key, String value) {
+        if (value == null || value.trim().isEmpty()) return;
+        prefs(context).edit().putString("notif_str_" + key, value.trim()).commit();
+    }
+
+    static String getNotificationString(Context context, String key, String fallback) {
+        String stored = prefs(context).getString("notif_str_" + key, null);
+        return (stored != null && !stored.trim().isEmpty()) ? stored : fallback;
+    }
+
     static String formatDate(Calendar cal) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         sdf.setTimeZone(TimeZone.getDefault());

@@ -13,10 +13,11 @@ import {
 } from 'recharts';
 import { useMesai } from '../context/MesaiContext';
 import { useResolvedDark } from '../hooks/useTheme';
+import { formatTemplate } from '../i18n';
 import {
   formatCurrency,
   formatDuration,
-  formatTurkishDate,
+  formatLocalizedDate,
   getTodayDateString,
   getWeekStartKey,
   summarizeEntries,
@@ -24,23 +25,8 @@ import {
 
 type StatsPeriod = 'weekly' | 'monthly' | 'yearly';
 
-const MONTH_SHORT_TR = [
-  'Oca',
-  'Şub',
-  'Mar',
-  'Nis',
-  'May',
-  'Haz',
-  'Tem',
-  'Ağu',
-  'Eyl',
-  'Eki',
-  'Kas',
-  'Ara',
-];
-
 export const StatsPage: React.FC = () => {
-  const { settings, entries, openNewEntryModal } = useMesai();
+  const { settings, entries, openNewEntryModal, language, locale, t } = useMesai();
   const [period, setPeriod] = useState<StatsPeriod>('monthly');
 
   const todayStr = getTodayDateString();
@@ -68,6 +54,10 @@ export const StatsPage: React.FC = () => {
 
   // Daily Work Hours & Daily Earnings chart data (grouped by day for selected period)
   const dailyChartData = useMemo(() => {
+    const dayFormatter = new Intl.DateTimeFormat(locale, {
+      day: '2-digit',
+      month: '2-digit',
+    });
     const map = new Map<
       string,
       { date: string; label: string; normalHours: number; overtimeHours: number; extraEarnings: number }
@@ -75,9 +65,14 @@ export const StatsPage: React.FC = () => {
 
     for (const e of periodEntries) {
       if (e.workType === 'paid_leave' || e.workType === 'unpaid_leave') continue;
+      let label = e.date.slice(5);
+      const [y, m, d] = e.date.split('-').map(Number);
+      if (y && m && d) {
+        label = dayFormatter.format(new Date(y, m - 1, d));
+      }
       const existing = map.get(e.date) ?? {
         date: e.date,
-        label: e.date.slice(5).split('-').reverse().join('.'),
+        label,
         normalHours: 0,
         overtimeHours: 0,
         extraEarnings: 0,
@@ -92,10 +87,11 @@ export const StatsPage: React.FC = () => {
     }
 
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
-  }, [periodEntries]);
+  }, [periodEntries, locale]);
 
   // Monthly Earnings Comparison across months that have entries in current year
   const monthlyComparisonData = useMemo(() => {
+    const monthFormatter = new Intl.DateTimeFormat(locale, { month: 'short' });
     const monthTotals = new Map<number, number>();
     for (const e of realizedEntries) {
       if (!e.date.startsWith(String(currentYear))) continue;
@@ -106,11 +102,11 @@ export const StatsPage: React.FC = () => {
     return Array.from(monthTotals.entries())
       .sort((a, b) => a[0] - b[0])
       .map(([mIdx, extra]) => ({
-        month: MONTH_SHORT_TR[mIdx],
+        month: monthFormatter.format(new Date(currentYear, mIdx, 1)),
         sabitMaas: settings.monthlySalary,
         ekKazanc: Math.max(0, Number(extra.toFixed(2))),
       }));
-  }, [realizedEntries, currentYear, settings.monthlySalary]);
+  }, [realizedEntries, currentYear, settings.monthlySalary, locale]);
 
   const isDark = useResolvedDark(settings.themeMode);
   const accentColor = isDark ? '#39D98A' : '#159B61';
@@ -126,19 +122,19 @@ export const StatsPage: React.FC = () => {
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-[#17221B] dark:text-[#F4F7F5] tracking-tight">
-            İstatistik ve Kazanç Analizi
+            {t.stats.title}
           </h1>
           <p className="text-xs text-[#77827B] dark:text-[#929B95]">
-            Gerçekleşen mesai kayıtlarına dayalı performans özeti
+            {t.stats.subtitle}
           </p>
         </div>
 
         <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] sm:w-72">
           {(
             [
-              { id: 'weekly', label: 'Haftalık' },
-              { id: 'monthly', label: 'Aylık' },
-              { id: 'yearly', label: 'Yıllık' },
+              { id: 'weekly', label: t.stats.weekly },
+              { id: 'monthly', label: t.stats.monthly },
+              { id: 'yearly', label: t.stats.yearly },
             ] as const
           ).map((tab) => (
             <button
@@ -164,10 +160,10 @@ export const StatsPage: React.FC = () => {
             <BarChart3 className="w-6 h-6" />
           </div>
           <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-            Bu dönem için henüz analiz verisi yok
+            {t.stats.emptyTitle}
           </h2>
           <p className="mt-1.5 text-xs text-[#77827B] dark:text-[#929B95] max-w-sm mx-auto leading-relaxed">
-            Seçili dönemde gerçekleşmiş mesai kaydı bulunmuyor. Kayıt ekledikçe çalışma saatlerin ve kazanç grafiklerin burada otomatik oluşacak.
+            {t.stats.emptyDesc}
           </p>
           <button
             type="button"
@@ -175,7 +171,7 @@ export const StatsPage: React.FC = () => {
             className="mt-5 min-h-[44px] px-5 rounded-2xl bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211] text-xs font-semibold inline-flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
-            <span>Mesai Ekle</span>
+            <span>{t.common.addOvertime}</span>
           </button>
         </section>
       ) : (
@@ -183,30 +179,36 @@ export const StatsPage: React.FC = () => {
           {/* Detailed Metric Cards */}
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-5">
-              <p className="text-xs text-[#77827B] dark:text-[#929B95]">Toplam çalışma</p>
+              <p className="text-xs text-[#77827B] dark:text-[#929B95]">{t.stats.totalWork}</p>
               <p className="mt-2 font-mono text-xl font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-                {formatDuration(summary.totalMinutes)}
+                {formatDuration(summary.totalMinutes, language)}
               </p>
             </div>
 
             <div className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-5">
-              <p className="text-xs text-[#77827B] dark:text-[#929B95]">Fazla mesai saati</p>
+              <p className="text-xs text-[#77827B] dark:text-[#929B95]">{t.stats.overtimeHours}</p>
               <p className="mt-2 font-mono text-xl font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums">
-                {formatDuration(summary.overtimeMinutes)}
+                {formatDuration(summary.overtimeMinutes, language)}
               </p>
             </div>
 
             <div className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-5">
-              <p className="text-xs text-[#77827B] dark:text-[#929B95]">Fazla mesai kazancı</p>
-              <p className="mt-2 font-mono text-xl font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums">
-                {formatCurrency(summary.overtimeEarnings, settings.currency)}
+              <p className="text-xs text-[#77827B] dark:text-[#929B95]">{t.stats.overtimeEarnings}</p>
+              <p
+                dir="ltr"
+                className="mt-2 font-mono text-xl font-bold text-[#159B61] dark:text-[#39D98A] tabular-nums"
+              >
+                {formatCurrency(summary.overtimeEarnings, settings.currency, 0, language)}
               </p>
             </div>
 
             <div className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-5">
-              <p className="text-xs text-[#77827B] dark:text-[#929B95]">Hafta sonu & tatil</p>
-              <p className="mt-2 font-mono text-xl font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-                {formatCurrency(summary.weekendAndHolidayEarnings, settings.currency)}
+              <p className="text-xs text-[#77827B] dark:text-[#929B95]">{t.stats.weekendAndHoliday}</p>
+              <p
+                dir="ltr"
+                className="mt-2 font-mono text-xl font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums"
+              >
+                {formatCurrency(summary.weekendAndHolidayEarnings, settings.currency, 0, language)}
               </p>
             </div>
           </section>
@@ -214,24 +216,24 @@ export const StatsPage: React.FC = () => {
           {/* Secondary Metric Strip */}
           <section className="rounded-2xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-3 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-[#D7E0DA] dark:divide-white/[0.06]">
             <div className="pt-1 sm:pt-0">
-              <p className="text-xs text-[#77827B] dark:text-[#929B95]">Çalışılan gün sayısı</p>
+              <p className="text-xs text-[#77827B] dark:text-[#929B95]">{t.stats.workedDays}</p>
               <p className="mt-1 font-mono text-lg font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-                {summary.workedDaysCount} gün
+                {summary.workedDaysCount} {t.common.daysUnit}
               </p>
             </div>
-            <div className="pt-3 sm:pt-0 sm:pl-4">
-              <p className="text-xs text-[#77827B] dark:text-[#929B95]">Ortalama günlük çalışma</p>
+            <div className="pt-3 sm:pt-0 sm:ps-4">
+              <p className="text-xs text-[#77827B] dark:text-[#929B95]">{t.stats.averageDailyWork}</p>
               <p className="mt-1 font-mono text-lg font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-                {formatDuration(summary.averageDailyMinutes)}
+                {formatDuration(summary.averageDailyMinutes, language)}
               </p>
             </div>
-            <div className="pt-3 sm:pt-0 sm:pl-4">
-              <p className="text-xs text-[#77827B] dark:text-[#929B95]">En uzun çalışma günü</p>
+            <div className="pt-3 sm:pt-0 sm:ps-4">
+              <p className="text-xs text-[#77827B] dark:text-[#929B95]">{t.stats.longestWorkDay}</p>
               <p className="mt-1 font-mono text-lg font-bold text-[#17221B] dark:text-[#F4F7F5] tabular-nums">
-                {formatDuration(summary.longestDayMinutes)}
+                {formatDuration(summary.longestDayMinutes, language)}
                 {summary.longestDayDate && (
-                  <span className="ml-2 text-xs font-sans font-normal text-[#77827B] dark:text-[#929B95]">
-                    · {formatTurkishDate(summary.longestDayDate)}
+                  <span className="ms-2 text-xs font-sans font-normal text-[#77827B] dark:text-[#929B95]">
+                    · {formatLocalizedDate(summary.longestDayDate, false, language)}
                   </span>
                 )}
               </p>
@@ -245,15 +247,15 @@ export const StatsPage: React.FC = () => {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-                    Günlük Çalışma Saati
+                    {t.stats.dailyWorkHoursTitle}
                   </h2>
                   <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">
-                    Normal ve fazla mesai dağılımı (saat)
+                    {t.stats.dailyWorkHoursDesc}
                   </p>
                 </div>
               </div>
 
-              <div className="h-64 w-full">
+              <div className="h-64 w-full" dir="ltr">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dailyChartData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
@@ -277,8 +279,8 @@ export const StatsPage: React.FC = () => {
                         color: isDark ? '#F4F7F5' : '#17221B',
                       }}
                       formatter={(value, name) => [
-                        `${Number(value ?? 0)} sa`,
-                        name === 'normalHours' ? 'Normal' : 'Fazla Mesai',
+                        `${Number(value ?? 0)} ${t.common.hoursShort}`,
+                        name === 'normalHours' ? t.stats.tooltipNormal : t.stats.tooltipOvertime,
                       ]}
                     />
                     <Bar dataKey="normalHours" stackId="a" fill={mutedBarColor} radius={[0, 0, 4, 4]} />
@@ -292,14 +294,14 @@ export const StatsPage: React.FC = () => {
             <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6">
               <div className="mb-4">
                 <h2 className="text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-                  Günlük Ek Kazanç
+                  {t.stats.dailyExtraEarningsTitle}
                 </h2>
                 <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">
-                  Fazla mesai ve tatil çalışmalarından elde edilen ek gelir
+                  {t.stats.dailyExtraEarningsDesc}
                 </p>
               </div>
 
-              <div className="h-64 w-full">
+              <div className="h-64 w-full" dir="ltr">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={dailyChartData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                     <defs>
@@ -329,8 +331,8 @@ export const StatsPage: React.FC = () => {
                         color: isDark ? '#F4F7F5' : '#17221B',
                       }}
                       formatter={(value) => [
-                        formatCurrency(Number(value ?? 0), settings.currency),
-                        'Ek Kazanç',
+                        formatCurrency(Number(value ?? 0), settings.currency, 0, language),
+                        t.stats.tooltipExtraEarnings,
                       ]}
                     />
                     <Area
@@ -352,14 +354,14 @@ export const StatsPage: React.FC = () => {
             <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6">
               <div className="mb-4">
                 <h2 className="text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-                  Aylık Kazanç Karşılaştırması ({currentYear})
+                  {formatTemplate(t.stats.monthlyComparisonTitle, { year: currentYear })}
                 </h2>
                 <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">
-                  Aylık sabit maaş ve ek mesai kazancı karşılaştırması
+                  {t.stats.monthlyComparisonDesc}
                 </p>
               </div>
 
-              <div className="h-64 w-full">
+              <div className="h-64 w-full" dir="ltr">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={monthlyComparisonData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
@@ -383,8 +385,8 @@ export const StatsPage: React.FC = () => {
                         color: isDark ? '#F4F7F5' : '#17221B',
                       }}
                       formatter={(value, name) => [
-                        formatCurrency(Number(value ?? 0), settings.currency),
-                        name === 'sabitMaas' ? 'Sabit Maaş' : 'Ek Kazanç',
+                        formatCurrency(Number(value ?? 0), settings.currency, 0, language),
+                        name === 'sabitMaas' ? t.stats.tooltipFixedSalary : t.stats.tooltipExtra,
                       ]}
                     />
                     <Bar dataKey="sabitMaas" stackId="m" fill={mutedBarColor} radius={[0, 0, 4, 4]} />

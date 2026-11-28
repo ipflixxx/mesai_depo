@@ -14,29 +14,19 @@ import { isNativeAndroidPlatform } from '../native/mesaiUpdater';
 import { MesaiAlarmSettings } from '../types/mesai';
 import { DEFAULT_SETTINGS, getTodayDateString } from '../utils/calculations';
 
-const WEEKDAY_OPTIONS: Array<{ iso: number; shortLabel: string; fullLabel: string }> = [
-  { iso: 1, shortLabel: 'Pzt', fullLabel: 'Pazartesi' },
-  { iso: 2, shortLabel: 'Sal', fullLabel: 'Salı' },
-  { iso: 3, shortLabel: 'Çar', fullLabel: 'Çarşamba' },
-  { iso: 4, shortLabel: 'Per', fullLabel: 'Perşembe' },
-  { iso: 5, shortLabel: 'Cum', fullLabel: 'Cuma' },
-  { iso: 6, shortLabel: 'Cmt', fullLabel: 'Cumartesi' },
-  { iso: 7, shortLabel: 'Paz', fullLabel: 'Pazar' },
-];
-
 function formatTimeInputValue(hour: number, minute: number): string {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
-function formatNextTriggerText(timestamp: number): string {
+function formatNextTriggerText(timestamp: number, locale: string, fallbackText: string): string {
   if (!Number.isFinite(timestamp) || timestamp <= 0) {
-    return 'Planlanmış sonraki tetikleme yok';
+    return fallbackText;
   }
   const dt = new Date(timestamp);
   if (Number.isNaN(dt.getTime())) {
-    return 'Planlanmış sonraki tetikleme yok';
+    return fallbackText;
   }
-  return new Intl.DateTimeFormat('tr-TR', {
+  return new Intl.DateTimeFormat(locale, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -46,8 +36,18 @@ function formatNextTriggerText(timestamp: number): string {
 }
 
 export const MesaiAlarmSection: React.FC = () => {
-  const { settings, entries, updateSettings } = useMesai();
+  const { settings, entries, updateSettings, language, locale, t } = useMesai();
   const isAndroid = isNativeAndroidPlatform();
+
+  const weekdayOptions = useMemo(
+    () =>
+      [1, 2, 3, 4, 5, 6, 7].map((iso, idx) => ({
+        iso,
+        shortLabel: t.calendar.weekdays[idx],
+        fullLabel: t.calendar.weekdaysFull[idx],
+      })),
+    [t.calendar.weekdays, t.calendar.weekdaysFull]
+  );
 
   const savedConfig: MesaiAlarmSettings = useMemo(
     () => ({
@@ -185,7 +185,7 @@ export const MesaiAlarmSection: React.FC = () => {
     setErrorMessage(null);
 
     if (draft.enabled && draft.daysOfWeek.length === 0) {
-      setErrorMessage('Alarm aktifken haftanın en az bir gününü seçmelisiniz.');
+      setErrorMessage(t.alarm.errSelectOneDay);
       return;
     }
 
@@ -208,18 +208,12 @@ export const MesaiAlarmSection: React.FC = () => {
         }
       }
 
-      const updatedStatus = await saveNativeAlarmConfig(cleanConfig, recordedDates);
+      const updatedStatus = await saveNativeAlarmConfig(cleanConfig, recordedDates, language);
       setNativeStatus(updatedStatus);
-      setSaveMessage(
-        cleanConfig.enabled
-          ? 'Mesai alarmı kaydedildi ve planlandı.'
-          : 'Mesai alarmı kapatıldı ve bekleyen planlama iptal edildi.'
-      );
+      setSaveMessage(cleanConfig.enabled ? t.alarm.savedActive : t.alarm.savedInactive);
       setTimeout(() => setSaveMessage(null), 3500);
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : 'Alarm ayarları kaydedilemedi.'
-      );
+      setErrorMessage(err instanceof Error ? err.message : t.alarm.errSaveFailed);
     } finally {
       setIsSaving(false);
     }
@@ -246,9 +240,7 @@ export const MesaiAlarmSection: React.FC = () => {
         const status = await MesaiAlarm.testAlarm();
         setNativeStatus(status);
       } catch (err) {
-        setErrorMessage(
-          err instanceof Error ? err.message : 'Test alarmı başlatılamadı.'
-        );
+        setErrorMessage(err instanceof Error ? err.message : t.alarm.errTestFailed);
       }
     } else {
       setIsWebRinging(true);
@@ -271,7 +263,7 @@ export const MesaiAlarmSection: React.FC = () => {
 
   return (
     <section
-      aria-label="Mesai Alarmı"
+      aria-label={t.alarm.sectionAria}
       className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-6 space-y-5"
     >
       {/* Başlık & Aç/Kapat Anahtarı */}
@@ -284,11 +276,11 @@ export const MesaiAlarmSection: React.FC = () => {
               <BellOff className="w-4 h-4 text-[#77827B] dark:text-[#929B95] shrink-0" />
             )}
             <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-              Mesai Alarmı
+              {t.alarm.title}
             </h2>
           </div>
           <p className="mt-1 text-xs text-[#77827B] dark:text-[#929B95] leading-relaxed">
-            Seçtiğiniz günlerde belirlediğiniz saatte o güne ait mesai kaydı yoksa 5 saniyelik sesli hatırlatma çalar.
+            {t.alarm.desc}
           </p>
         </div>
 
@@ -296,7 +288,7 @@ export const MesaiAlarmSection: React.FC = () => {
           type="button"
           role="switch"
           aria-checked={draft.enabled}
-          aria-label="Mesai alarmını aç veya kapat"
+          aria-label={t.alarm.toggleAria}
           onClick={handleToggleEnabled}
           className={`relative shrink-0 inline-flex h-8 w-14 items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#159B61] dark:focus-visible:ring-[#39D98A] ${
             draft.enabled
@@ -306,7 +298,9 @@ export const MesaiAlarmSection: React.FC = () => {
         >
           <span
             className={`inline-block h-6 w-6 transform rounded-full bg-white dark:bg-[#101211] shadow-sm transition-transform ${
-              draft.enabled ? 'translate-x-7' : 'translate-x-1'
+              draft.enabled
+                ? 'translate-x-7 rtl:-translate-x-7'
+                : 'translate-x-1 rtl:-translate-x-1'
             }`}
           />
         </button>
@@ -316,7 +310,7 @@ export const MesaiAlarmSection: React.FC = () => {
       <div className="rounded-2xl bg-[#EEF2EF]/85 dark:bg-[#222925]/80 border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 py-3 space-y-1">
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <span className="font-medium text-[#77827B] dark:text-[#929B95]">
-            Alarm durumu
+            {t.alarm.statusLabel}
           </span>
           <span
             className={`font-semibold ${
@@ -325,19 +319,26 @@ export const MesaiAlarmSection: React.FC = () => {
                 : 'text-[#77827B] dark:text-[#929B95]'
             }`}
           >
-            {savedConfig.enabled
-              ? `Aktif · ${activeTimeLabel}${isDirty ? ' (kaydedilmemiş değişiklik var)' : ''}`
-              : `Pasif${isDirty ? ' (kaydedilmemiş değişiklik var)' : ''}`}
+            {savedConfig.enabled ? (
+              <>
+                {t.alarm.active} · <span dir="ltr">{activeTimeLabel}</span>
+                {isDirty ? ` ${t.alarm.unsavedChanges}` : ''}
+              </>
+            ) : (
+              `${t.alarm.inactive}${isDirty ? ` ${t.alarm.unsavedChanges}` : ''}`
+            )}
           </span>
         </div>
 
         {savedConfig.enabled && (
           <p className="text-[11px] text-[#77827B] dark:text-[#929B95]">
-            Sonraki alarm:{' '}
+            {t.alarm.nextAlarm}{' '}
             <span className="font-medium text-[#2A302D] dark:text-[#F5F3EE]">
               {formatNextTriggerText(
                 nativeStatus?.nextTriggerAt ??
-                  computeNextAlarmPreviewMillis(savedConfig, recordedDates)
+                  computeNextAlarmPreviewMillis(savedConfig, recordedDates),
+                locale,
+                t.alarm.noNextTrigger
               )}
             </span>
           </p>
@@ -345,7 +346,7 @@ export const MesaiAlarmSection: React.FC = () => {
 
         {savedConfig.enabled && hasTodayEntry && (
           <p className="text-[11px] text-[#159B61] dark:text-[#39D98A]">
-            Bugün için mesai kaydınız bulunduğu için bugünkü alarm otomatik atlanacaktır.
+            {t.alarm.todayAlreadyRecorded}
           </p>
         )}
       </div>
@@ -357,11 +358,12 @@ export const MesaiAlarmSection: React.FC = () => {
             htmlFor="mesai-alarm-time"
             className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5"
           >
-            Alarm saati
+            {t.alarm.alarmTime}
           </label>
           <input
             id="mesai-alarm-time"
             type="time"
+            dir="ltr"
             value={formatTimeInputValue(draft.hour, draft.minute)}
             onChange={(e) => handleTimeChange(e.target.value)}
             className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-base font-semibold text-[#17221B] dark:text-[#F4F7F5] focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
@@ -370,10 +372,10 @@ export const MesaiAlarmSection: React.FC = () => {
 
         <div>
           <span className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-            Tekrar günleri
+            {t.alarm.repeatDays}
           </span>
           <div className="grid grid-cols-7 gap-1 min-[360px]:gap-1.5 sm:gap-2">
-            {WEEKDAY_OPTIONS.map((day) => {
+            {weekdayOptions.map((day) => {
               const selected = draft.daysOfWeek.includes(day.iso);
               return (
                 <button
@@ -407,21 +409,21 @@ export const MesaiAlarmSection: React.FC = () => {
               <ShieldAlert className="w-4 h-4 text-[#D97706] dark:text-[#F59E0B] mt-0.5 shrink-0" />
               <div className="space-y-1 text-xs">
                 <p className="font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-                  Arka plan alarm izinleri
+                  {t.alarm.bgPermissionsTitle}
                 </p>
                 {!nativeStatus.notificationsEnabled && (
                   <p className="text-[#77827B] dark:text-[#929B95]">
-                    Android 13 ve üzerinde alarm bildirimini ve durdurma düğmesini gösterebilmek için bildirim izni gerekir.
+                    {t.alarm.notifPermDesc}
                   </p>
                 )}
                 {!nativeStatus.canScheduleExactAlarms && (
                   <p className="text-[#77827B] dark:text-[#929B95]">
-                    Uygulama kapalıyken alarmın tam dakikasında çalması için &quot;Alarmlar ve hatırlatıcılar&quot; iznini açmanız önerilir.
+                    {t.alarm.exactAlarmDesc}
                   </p>
                 )}
                 {!nativeStatus.batteryOptimizationIgnored && (
                   <p className="text-[#77827B] dark:text-[#929B95]">
-                    Pil kısıtlaması açıksa bazı cihazlar uyku modunda alarmı geciktirebilir.
+                    {t.alarm.batteryDesc}
                   </p>
                 )}
               </div>
@@ -434,7 +436,7 @@ export const MesaiAlarmSection: React.FC = () => {
                   onClick={() => void handleRequestNotification()}
                   className="min-h-[40px] px-3 rounded-xl bg-[#D97706] dark:bg-[#F59E0B] text-white dark:text-[#101211] text-xs font-semibold"
                 >
-                  Bildirim İzni Ver
+                  {t.alarm.grantNotifPerm}
                 </button>
               )}
               {!nativeStatus.canScheduleExactAlarms && (
@@ -443,7 +445,7 @@ export const MesaiAlarmSection: React.FC = () => {
                   onClick={() => void MesaiAlarm.openExactAlarmSettings()}
                   className="min-h-[40px] px-3 rounded-xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.1] text-[#17221B] dark:text-[#F4F7F5] text-xs font-semibold"
                 >
-                  Tam Zamanlı Alarm İzni
+                  {t.alarm.exactAlarmBtn}
                 </button>
               )}
               {!nativeStatus.batteryOptimizationIgnored && (
@@ -452,7 +454,7 @@ export const MesaiAlarmSection: React.FC = () => {
                   onClick={() => void MesaiAlarm.openBatterySettings()}
                   className="min-h-[40px] px-3 rounded-xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CFD8D2] dark:border-white/[0.1] text-[#17221B] dark:text-[#F4F7F5] text-xs font-semibold"
                 >
-                  Pil Optimizasyonunu Kontrol Et
+                  {t.alarm.batteryBtn}
                 </button>
               )}
             </div>
@@ -480,7 +482,7 @@ export const MesaiAlarmSection: React.FC = () => {
           onClick={() => void handleSaveAlarm()}
           className="sm:flex-1 min-h-[46px] px-5 rounded-2xl bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211] text-sm font-semibold transition-transform active:scale-[0.98] disabled:opacity-60"
         >
-          {isSaving ? 'Kaydediliyor...' : 'Alarm Ayarlarını Kaydet'}
+          {isSaving ? t.common.saving : t.alarm.saveAlarmBtn}
         </button>
 
         <button
@@ -495,12 +497,12 @@ export const MesaiAlarmSection: React.FC = () => {
           {isRinging ? (
             <>
               <Square className="w-4 h-4 fill-current" />
-              <span>Alarmı Durdur</span>
+              <span>{t.alarm.stopAlarmBtn}</span>
             </>
           ) : (
             <>
               <Play className="w-4 h-4" />
-              <span>Alarmı Test Et (5 sn)</span>
+              <span>{t.alarm.testAlarmBtn}</span>
             </>
           )}
         </button>

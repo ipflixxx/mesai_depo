@@ -1,3 +1,5 @@
+import type { AppLanguage } from '../i18n/types';
+
 export type SalaryType = 'net' | 'gross';
 
 export type CurrencyCode = 'TRY' | 'USD' | 'EUR';
@@ -38,6 +40,7 @@ export interface UserSettings {
   overtimeCalculationMode: OvertimeCalculationMode;
   themeMode: ThemeMode;
   onboardingCompleted: boolean;
+  language?: AppLanguage;
   alarm?: MesaiAlarmSettings;
 }
 

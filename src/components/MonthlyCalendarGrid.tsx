@@ -1,44 +1,55 @@
 import React, { useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, List, Plus, Trash2 } from 'lucide-react';
+import { useMesai } from '../context/MesaiContext';
+import { AppLanguage, formatTemplate } from '../i18n';
 import { CurrencyCode, WorkEntry } from '../types/mesai';
 import {
   CURRENCY_CONFIG,
-  WORK_TYPE_LABELS,
   formatCompactCurrency,
   formatCurrency,
   formatDuration,
+  formatLocalizedDate,
   formatMonthYear,
-  formatTurkishDate,
   getTodayDateString,
+  getWorkTypeLabel,
 } from '../utils/calculations';
 
-const WEEKDAYS_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-
-function formatCalendarMobileCurrency(amount: number, currency: CurrencyCode): string {
+function formatCalendarMobileCurrency(
+  amount: number,
+  currency: CurrencyCode,
+  lang: AppLanguage,
+  locale: string,
+  thousandSuffix: string
+): string {
   const safe = Number.isFinite(amount) ? Math.round(amount) : 0;
   const symbol = CURRENCY_CONFIG[currency]?.symbol ?? '₺';
   const sign = safe > 0 ? '+' : safe < 0 ? '-' : '';
   const abs = Math.abs(safe);
   if (abs >= 10000) {
-    const thousands = new Intl.NumberFormat('tr-TR', {
+    const thousands = new Intl.NumberFormat(locale, {
       minimumFractionDigits: abs >= 100000 ? 0 : 1,
       maximumFractionDigits: abs >= 100000 ? 0 : 1,
     }).format(abs / 1000);
-    return `${sign}${thousands}b${symbol}`;
+    return `${sign}${thousands}${thousandSuffix}${symbol}`;
   }
-  return formatCompactCurrency(safe, currency);
+  return formatCompactCurrency(safe, currency, lang);
 }
 
-function formatCompactHours(totalMinutes: number): string {
+function formatCompactHours(
+  totalMinutes: number,
+  locale: string,
+  minSuffix: string,
+  hourSuffix: string
+): string {
   const safe = Math.max(0, Math.round(totalMinutes));
   if (safe === 0) return '';
-  if (safe < 60) return `${safe}dk`;
+  if (safe < 60) return `${safe}${minSuffix}`;
   const hours = safe / 60;
-  if (Number.isInteger(hours)) return `${hours}sa`;
-  return `${new Intl.NumberFormat('tr-TR', {
+  if (Number.isInteger(hours)) return `${hours}${hourSuffix}`;
+  return `${new Intl.NumberFormat(locale, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
-  }).format(hours)}sa`;
+  }).format(hours)}${hourSuffix}`;
 }
 
 function resolveEntryRatePercent(
@@ -66,19 +77,23 @@ function resolveEntryRatePercent(
 function getEntryTypeSummary(
   entry: WorkEntry,
   overtimeMultiplier: number,
-  weekendMultiplier: number
+  weekendMultiplier: number,
+  lang: AppLanguage
 ): { label: string; tone: 'normal' | 'rate50' | 'rate100' | 'leave' } {
+  const typeLabel = getWorkTypeLabel(entry.workType, lang);
   if (entry.workType === 'paid_leave' || entry.workType === 'unpaid_leave') {
-    return { label: WORK_TYPE_LABELS[entry.workType], tone: 'leave' };
+    return { label: typeLabel, tone: 'leave' };
   }
   const ratePercent = resolveEntryRatePercent(entry, overtimeMultiplier, weekendMultiplier);
   if (ratePercent === 100) {
-    return { label: `${WORK_TYPE_LABELS[entry.workType]} · %100`, tone: 'rate100' };
+    const pct = lang === 'tr' ? '%100' : '100%';
+    return { label: `${typeLabel} · ${pct}`, tone: 'rate100' };
   }
   if (ratePercent === 50) {
-    return { label: `${WORK_TYPE_LABELS[entry.workType]} · %50`, tone: 'rate50' };
+    const pct = lang === 'tr' ? '%50' : '50%';
+    return { label: `${typeLabel} · ${pct}`, tone: 'rate50' };
   }
-  return { label: WORK_TYPE_LABELS[entry.workType], tone: 'normal' };
+  return { label: typeLabel, tone: 'normal' };
 }
 
 function getToneTextClass(tone: 'normal' | 'rate50' | 'rate100' | 'leave'): string {
@@ -132,6 +147,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
   overtimeMultiplier = 1.5,
   weekendMultiplier = 2.0,
 }) => {
+  const { language, locale, t } = useMesai();
   const [displayMode, setDisplayMode] = useState<'calendar' | 'list'>('calendar');
   const todayStr = getTodayDateString();
   const hasCellDetailText = showEarningsInCells || showHoursInCells;
@@ -181,28 +197,28 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
 
   return (
     <section
-      aria-label="Aylık mesai takvimi"
+      aria-label={t.calendar.ariaLabel}
       className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-3 min-[360px]:p-3.5 sm:p-6"
     >
       {/* Month, View Switcher & Navigation */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5 sm:mb-5 px-0.5 sm:px-0">
         <div className="flex items-center gap-2 min-w-0">
           <h2 className="text-[15px] min-[360px]:text-base sm:text-lg font-bold text-[#2A302D] dark:text-[#F5F3EE] truncate">
-            {formatMonthYear(viewYear, viewMonth)}
+            {formatMonthYear(viewYear, viewMonth, language)}
           </h2>
         </div>
 
-        <div className="flex items-center gap-1 min-[360px]:gap-1.5 shrink-0 ml-auto">
+        <div className="flex items-center gap-1 min-[360px]:gap-1.5 shrink-0 ms-auto">
           {/* Takvim / Liste Görünümü */}
           <div
             role="group"
-            aria-label="Görünüm modu"
+            aria-label={t.calendar.viewModeAria}
             className="flex items-center p-0.5 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07]"
           >
             <button
               type="button"
               onClick={() => setDisplayMode('calendar')}
-              aria-label="Takvim görünümü"
+              aria-label={t.calendar.calendarViewAria}
               aria-pressed={displayMode === 'calendar'}
               className={`min-h-[34px] px-2 min-[360px]:px-2.5 rounded-[10px] flex items-center gap-1 text-xs font-medium transition-colors whitespace-nowrap ${
                 displayMode === 'calendar'
@@ -211,12 +227,12 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
               }`}
             >
               <CalendarDays className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">Takvim</span>
+              <span className="hidden sm:inline">{t.calendar.calendarTab}</span>
             </button>
             <button
               type="button"
               onClick={() => setDisplayMode('list')}
-              aria-label="Liste görünümü"
+              aria-label={t.calendar.listViewAria}
               aria-pressed={displayMode === 'list'}
               className={`min-h-[34px] px-2 min-[360px]:px-2.5 rounded-[10px] flex items-center gap-1 text-xs font-medium transition-colors whitespace-nowrap ${
                 displayMode === 'list'
@@ -225,7 +241,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
               }`}
             >
               <List className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">Liste</span>
+              <span className="hidden sm:inline">{t.calendar.listTab}</span>
             </button>
           </div>
 
@@ -234,24 +250,24 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
             onClick={onJumpToday}
             className="min-h-[36px] sm:min-h-[38px] px-2 min-[360px]:px-2.5 sm:px-3 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[11px] min-[360px]:text-xs font-medium text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity whitespace-nowrap"
           >
-            <span className="sm:hidden">Bugün</span>
-            <span className="hidden sm:inline">Bugüne Dön</span>
+            <span className="sm:hidden">{t.calendar.todayShort}</span>
+            <span className="hidden sm:inline">{t.calendar.todayFull}</span>
           </button>
           <button
             type="button"
             onClick={onPrevMonth}
-            aria-label="Önceki ay"
+            aria-label={t.calendar.prevMonthAria}
             className="min-h-[36px] min-w-[34px] sm:min-h-[38px] sm:min-w-[38px] flex items-center justify-center rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
           </button>
           <button
             type="button"
             onClick={onNextMonth}
-            aria-label="Sonraki ay"
+            aria-label={t.calendar.nextMonthAria}
             className="min-h-[36px] min-w-[34px] sm:min-h-[38px] sm:min-w-[38px] flex items-center justify-center rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-[#17221B] dark:text-[#F4F7F5] hover:opacity-85 transition-opacity"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 rtl:rotate-180" />
           </button>
         </div>
       </div>
@@ -260,9 +276,9 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
         <>
           {/* Weekday Headers (Monday start, exact alignment with day cells) */}
           <div className="grid grid-cols-7 gap-[clamp(0.375rem,2vw,0.75rem)] mb-2 sm:mb-2.5">
-            {WEEKDAYS_TR.map((day, i) => (
+            {t.calendar.weekdays.map((day, i) => (
               <div
-                key={day}
+                key={`${day}-${i}`}
                 className={`min-w-0 text-center text-[clamp(0.6875rem,2.8vw,0.75rem)] font-semibold py-1 ${
                   i >= 5
                     ? 'text-[#77827B]/80 dark:text-[#929B95]/75'
@@ -359,14 +375,20 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                 ? 'bg-[#2563EB]/[0.07] dark:bg-[#60A5FA]/[0.09] border-[#2563EB]/25 dark:border-[#60A5FA]/25'
                 : 'bg-[#EEF2EF]/80 dark:bg-[#222925]/60 border-[#C9D3CD] dark:border-white/[0.08]';
 
+              const cellDateLabel = `${cell.dayNum} ${formatMonthYear(viewYear, viewMonth, language)}`;
               return (
                 <button
                   key={cell.dateStr}
                   type="button"
                   onClick={handleCellClick}
-                  aria-label={`${cell.dayNum} ${formatMonthYear(viewYear, viewMonth)}${
-                    entryCount > 0 ? `, ${entryCount} kayıt` : ''
-                  }`}
+                  aria-label={
+                    entryCount > 0
+                      ? formatTemplate(t.calendar.cellAriaWithEntries, {
+                          date: cellDateLabel,
+                          count: entryCount,
+                        })
+                      : cellDateLabel
+                  }
                   aria-pressed={isSelected}
                   className={`${
                     hasCellDetailText
@@ -392,7 +414,10 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                       {cell.dayNum}
                     </span>
                     {entryCount > 1 && (
-                      <span className="absolute right-0 top-0 font-sans text-[clamp(0.5rem,1.9vw,0.625rem)] leading-none font-bold text-[#77827B] dark:text-[#929B95] tabular-nums">
+                      <span
+                        dir="ltr"
+                        className="absolute end-0 top-0 font-sans text-[clamp(0.5rem,1.9vw,0.625rem)] leading-none font-bold text-[#77827B] dark:text-[#929B95] tabular-nums"
+                      >
                         ×{entryCount}
                       </span>
                     )}
@@ -410,6 +435,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                         <span className="block h-3" />
                       ) : dayEarnings !== 0 ? (
                         <span
+                          dir="ltr"
                           className={`block w-full font-sans sm:font-mono text-[clamp(0.53125rem,2.35vw,0.75rem)] font-bold tracking-[-0.03em] sm:tracking-tight tabular-nums whitespace-nowrap ${
                             dayEarnings > 0
                               ? 'text-[#159B61] dark:text-[#39D98A]'
@@ -417,15 +443,21 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                           }`}
                         >
                           <span className="sm:hidden">
-                            {formatCalendarMobileCurrency(dayEarnings, currency)}
+                            {formatCalendarMobileCurrency(
+                              dayEarnings,
+                              currency,
+                              language,
+                              locale,
+                              t.common.thousandSuffix
+                            )}
                           </span>
                           <span className="hidden sm:inline">
-                            {formatCompactCurrency(dayEarnings, currency)}
+                            {formatCompactCurrency(dayEarnings, currency, language)}
                           </span>
                         </span>
                       ) : (
                         <span className="block font-sans text-[clamp(0.5625rem,2.3vw,0.6875rem)] text-[#77827B] dark:text-[#929B95] whitespace-nowrap">
-                          {hasLeave ? 'İzin' : 'Normal'}
+                          {hasLeave ? t.common.leave : t.common.normal}
                         </span>
                       )}
                     </div>
@@ -443,28 +475,48 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                         <>
                           {hasRate50 && (
                             <span
-                              title="%50 mesai"
+                              title={t.calendar.rate50Title}
+                              dir="ltr"
                               className="block w-full font-sans sm:font-mono text-[clamp(0.5625rem,2.5vw,0.75rem)] font-bold tracking-[-0.02em] sm:tracking-tight text-[#D97706] dark:text-[#F59E0B] tabular-nums leading-none whitespace-nowrap"
                             >
-                              {formatCompactHours(rate50Minutes)}
+                              {formatCompactHours(
+                                rate50Minutes,
+                                locale,
+                                t.common.minutesCompact,
+                                t.common.hoursCompact
+                              )}
                             </span>
                           )}
                           {hasRate100 && (
                             <span
-                              title="%100 mesai"
+                              title={t.calendar.rate100Title}
+                              dir="ltr"
                               className="block w-full font-sans sm:font-mono text-[clamp(0.5625rem,2.5vw,0.75rem)] font-bold tracking-[-0.02em] sm:tracking-tight text-[#7C3AED] dark:text-[#A78BFA] tabular-nums leading-none whitespace-nowrap"
                             >
-                              {formatCompactHours(rate100Minutes)}
+                              {formatCompactHours(
+                                rate100Minutes,
+                                locale,
+                                t.common.minutesCompact,
+                                t.common.hoursCompact
+                              )}
                             </span>
                           )}
                         </>
                       ) : hasNormal ? (
-                        <span className="block w-full font-sans sm:font-mono text-[clamp(0.5625rem,2.5vw,0.75rem)] font-bold tracking-[-0.02em] sm:tracking-tight text-[#159B61] dark:text-[#39D98A] tabular-nums leading-none whitespace-nowrap">
-                          {formatCompactHours(normalMinutes)}
+                        <span
+                          dir="ltr"
+                          className="block w-full font-sans sm:font-mono text-[clamp(0.5625rem,2.5vw,0.75rem)] font-bold tracking-[-0.02em] sm:tracking-tight text-[#159B61] dark:text-[#39D98A] tabular-nums leading-none whitespace-nowrap"
+                        >
+                          {formatCompactHours(
+                            normalMinutes,
+                            locale,
+                            t.common.minutesCompact,
+                            t.common.hoursCompact
+                          )}
                         </span>
                       ) : hasLeave ? (
                         <span className="block font-sans text-[clamp(0.5625rem,2.3vw,0.6875rem)] font-medium text-[#2563EB] dark:text-[#60A5FA] leading-none whitespace-nowrap">
-                          İzin
+                          {t.common.leave}
                         </span>
                       ) : (
                         <span className="block h-3" />
@@ -496,19 +548,19 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
             <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5">
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#159B61] dark:bg-[#39D98A]" />
-                Normal
+                {t.calendar.legendNormal}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#D97706] dark:bg-[#F59E0B]" />
-                %50 mesai
+                {t.calendar.legend50}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#7C3AED] dark:bg-[#A78BFA]" />
-                %100 mesai
+                {t.calendar.legend100}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#2563EB] dark:bg-[#60A5FA]" />
-                İzin
+                {t.calendar.legendLeave}
               </span>
             </div>
           </div>
@@ -518,7 +570,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
             <div className="mt-3 pt-3 border-t border-[#D7E0DA] dark:border-white/[0.06] space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-[#2A302D] dark:text-[#F5F3EE] truncate">
-                  {formatTurkishDate(selectedDate)}
+                  {formatLocalizedDate(selectedDate, false, language)}
                 </span>
                 {onSelectedDayClick && (
                   <button
@@ -527,7 +579,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                     className="min-h-[34px] px-3 rounded-xl bg-[#159B61]/10 dark:bg-[#39D98A]/12 text-[#159B61] dark:text-[#39D98A] text-xs font-semibold inline-flex items-center gap-1 hover:opacity-85 transition-opacity whitespace-nowrap shrink-0"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Mesai Ekle</span>
+                    <span>{t.common.addOvertime}</span>
                   </button>
                 )}
               </div>
@@ -538,10 +590,12 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                     const info = getEntryTypeSummary(
                       entry,
                       overtimeMultiplier,
-                      weekendMultiplier
+                      weekendMultiplier,
+                      language
                     );
                     const isLeaveEntry =
                       entry.workType === 'paid_leave' || entry.workType === 'unpaid_leave';
+                    const dateLabel = formatLocalizedDate(entry.date, false, language);
                     return (
                       <div
                         key={entry.id}
@@ -551,7 +605,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                           type="button"
                           onClick={() => onEditEntry?.(entry)}
                           disabled={!onEditEntry}
-                          className="flex-1 min-w-0 py-1 flex items-center justify-between gap-2.5 text-left hover:opacity-80 transition-opacity disabled:cursor-default"
+                          className="flex-1 min-w-0 py-1 flex items-center justify-between gap-2.5 text-start hover:opacity-80 transition-opacity disabled:cursor-default"
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span
@@ -571,13 +625,16 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                           <div className="flex items-center gap-2 shrink-0 font-mono text-xs tabular-nums">
                             {!isLeaveEntry && (
                               <span className="text-[#77827B] dark:text-[#929B95]">
-                                {formatDuration(entry.calculatedDurationMinutes)}
+                                {formatDuration(entry.calculatedDurationMinutes, language)}
                               </span>
                             )}
                             {entry.estimatedEarnings !== 0 && (
-                              <span className={`font-semibold ${getToneTextClass(info.tone)}`}>
+                              <span
+                                dir="ltr"
+                                className={`font-semibold ${getToneTextClass(info.tone)}`}
+                              >
                                 {entry.estimatedEarnings > 0 ? '+' : ''}
-                                {formatCurrency(entry.estimatedEarnings, currency)}
+                                {formatCurrency(entry.estimatedEarnings, currency, 0, language)}
                               </span>
                             )}
                           </div>
@@ -586,8 +643,10 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                           <button
                             type="button"
                             onClick={() => onDeleteEntry(entry)}
-                            aria-label={`${formatTurkishDate(entry.date)} kaydını sil`}
-                            title="Kaydı sil"
+                            aria-label={formatTemplate(t.calendar.deleteEntryAria, {
+                              date: dateLabel,
+                            })}
+                            title={t.calendar.deleteEntryTitle}
                             className="min-h-[34px] min-w-[34px] shrink-0 flex items-center justify-center rounded-xl text-red-600/80 dark:text-red-400/80 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -607,7 +666,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
           {monthEntriesSorted.length === 0 ? (
             <div className="py-10 text-center space-y-3">
               <p className="text-xs text-[#77827B] dark:text-[#929B95]">
-                Bu ay için henüz mesai kaydı bulunmuyor.
+                {t.calendar.emptyMonth}
               </p>
               {onSelectedDayClick && (
                 <button
@@ -616,7 +675,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                   className="min-h-[42px] px-4 rounded-xl bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211] text-xs font-semibold inline-flex items-center gap-1.5"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Mesai Ekle</span>
+                  <span>{t.common.addOvertime}</span>
                 </button>
               )}
             </div>
@@ -624,15 +683,19 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
             <>
               {/* Mobile auto-sized table (no horizontal scroll, zero clipped currency) */}
               <div className="sm:hidden">
-                <table className="w-full table-auto border-collapse text-left">
+                <table className="w-full table-auto border-collapse text-start">
                   <thead>
                     <tr className="border-b border-[#D7E0DA] dark:border-white/[0.08] text-[10.5px] min-[360px]:text-[11px] font-semibold text-[#77827B] dark:text-[#929B95]">
-                      <th className="py-2 pr-1">Tarih & Tür</th>
-                      <th className="w-[1%] whitespace-nowrap py-2 px-1 text-right">Süre</th>
-                      <th className="w-[1%] whitespace-nowrap py-2 pl-1 text-right">Kazanç</th>
+                      <th className="py-2 pe-1">{t.calendar.colDateAndType}</th>
+                      <th className="w-[1%] whitespace-nowrap py-2 px-1 text-end">
+                        {t.calendar.colDuration}
+                      </th>
+                      <th className="w-[1%] whitespace-nowrap py-2 ps-1 text-end">
+                        {t.calendar.colEarnings}
+                      </th>
                       {onDeleteEntry && (
-                        <th className="w-[1%] whitespace-nowrap py-2 pl-1 text-right">
-                          <span className="sr-only">Sil</span>
+                        <th className="w-[1%] whitespace-nowrap py-2 ps-1 text-end">
+                          <span className="sr-only">{t.common.delete}</span>
                         </th>
                       )}
                     </tr>
@@ -642,10 +705,12 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                       const info = getEntryTypeSummary(
                         entry,
                         overtimeMultiplier,
-                        weekendMultiplier
+                        weekendMultiplier,
+                        language
                       );
                       const isLeaveEntry =
                         entry.workType === 'paid_leave' || entry.workType === 'unpaid_leave';
+                      const dateLabel = formatLocalizedDate(entry.date, false, language);
                       return (
                         <tr
                           key={entry.id}
@@ -656,7 +721,7 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                               : ''
                           }
                         >
-                          <td className="py-2.5 pr-1 align-middle max-w-0 w-full">
+                          <td className="py-2.5 pe-1 align-middle max-w-0 w-full">
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span
                                 className={`w-2 h-2 rounded-full shrink-0 ${getToneDotClass(
@@ -664,21 +729,23 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                                 )}`}
                               />
                               <span className="text-[12px] min-[360px]:text-[13px] font-semibold text-[#2A302D] dark:text-[#F5F3EE] truncate">
-                                {formatTurkishDate(entry.date)}
+                                {dateLabel}
                               </span>
                             </div>
-                            <p className="pl-3.5 mt-0.5 text-[10.5px] min-[360px]:text-[11px] text-[#77827B] dark:text-[#929B95] truncate">
+                            <p className="ps-3.5 mt-0.5 text-[10.5px] min-[360px]:text-[11px] text-[#77827B] dark:text-[#929B95] truncate">
                               {info.label}
                               {entry.notes ? ` · ${entry.notes}` : ''}
                             </p>
                           </td>
 
-                          <td className="w-[1%] whitespace-nowrap py-2.5 px-1 text-right align-middle font-sans text-[11px] min-[360px]:text-xs text-[#77827B] dark:text-[#929B95] tabular-nums">
-                            {isLeaveEntry ? '—' : formatDuration(entry.calculatedDurationMinutes)}
+                          <td className="w-[1%] whitespace-nowrap py-2.5 px-1 text-end align-middle font-sans text-[11px] min-[360px]:text-xs text-[#77827B] dark:text-[#929B95] tabular-nums">
+                            {isLeaveEntry
+                              ? '—'
+                              : formatDuration(entry.calculatedDurationMinutes, language)}
                           </td>
 
                           <td
-                            className={`w-[1%] whitespace-nowrap py-2.5 pl-1 text-right align-middle font-sans text-[11.5px] min-[360px]:text-[13px] font-bold tabular-nums ${
+                            className={`w-[1%] whitespace-nowrap py-2.5 ps-1 text-end align-middle font-sans text-[11.5px] min-[360px]:text-[13px] font-bold tabular-nums ${
                               entry.estimatedEarnings < 0
                                 ? 'text-red-600 dark:text-red-400'
                                 : entry.estimatedEarnings > 0
@@ -686,26 +753,30 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                                 : 'text-[#77827B] dark:text-[#929B95]'
                             }`}
                           >
-                            {entry.estimatedEarnings !== 0
-                              ? `${entry.estimatedEarnings > 0 ? '+' : ''}${formatCurrency(
-                                  entry.estimatedEarnings,
-                                  currency
-                                )}`
-                              : isLeaveEntry
-                              ? 'İzin'
-                              : 'Normal'}
+                            {entry.estimatedEarnings !== 0 ? (
+                              <span dir="ltr">
+                                {entry.estimatedEarnings > 0 ? '+' : ''}
+                                {formatCurrency(entry.estimatedEarnings, currency, 0, language)}
+                              </span>
+                            ) : isLeaveEntry ? (
+                              t.common.leave
+                            ) : (
+                              t.common.normal
+                            )}
                           </td>
 
                           {onDeleteEntry && (
-                            <td className="w-[1%] whitespace-nowrap py-1.5 pl-1 text-right align-middle">
+                            <td className="w-[1%] whitespace-nowrap py-1.5 ps-1 text-end align-middle">
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onDeleteEntry(entry);
                                 }}
-                                aria-label={`${formatTurkishDate(entry.date)} kaydını sil`}
-                                title="Kaydı sil"
+                                aria-label={formatTemplate(t.calendar.deleteEntryAria, {
+                                  date: dateLabel,
+                                })}
+                                title={t.calendar.deleteEntryTitle}
                                 className="min-h-[34px] min-w-[32px] inline-flex items-center justify-center rounded-xl text-red-600/80 dark:text-red-400/80 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -721,15 +792,17 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
 
               {/* Desktop Structured Table */}
               <div className="hidden sm:block">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-start border-collapse">
                   <thead>
                     <tr className="border-b border-[#D7E0DA] dark:border-white/[0.08] text-[11px] font-semibold text-[#77827B] dark:text-[#929B95]">
-                      <th className="py-2.5 pr-3">Tarih</th>
-                      <th className="py-2.5 px-3">Tür</th>
-                      <th className="py-2.5 px-3 text-right">Süre</th>
-                      <th className="py-2.5 px-3 text-right">Kazanç</th>
-                      <th className="py-2.5 pl-3">Not</th>
-                      {onDeleteEntry && <th className="py-2.5 pl-3 text-right">İşlem</th>}
+                      <th className="py-2.5 pe-3">{t.calendar.colDate}</th>
+                      <th className="py-2.5 px-3">{t.calendar.colType}</th>
+                      <th className="py-2.5 px-3 text-end">{t.calendar.colDuration}</th>
+                      <th className="py-2.5 px-3 text-end">{t.calendar.colEarnings}</th>
+                      <th className="py-2.5 ps-3">{t.calendar.colNotes}</th>
+                      {onDeleteEntry && (
+                        <th className="py-2.5 ps-3 text-end">{t.calendar.colAction}</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#D7E0DA] dark:divide-white/[0.06] text-sm">
@@ -737,10 +810,12 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                       const info = getEntryTypeSummary(
                         entry,
                         overtimeMultiplier,
-                        weekendMultiplier
+                        weekendMultiplier,
+                        language
                       );
                       const isLeaveEntry =
                         entry.workType === 'paid_leave' || entry.workType === 'unpaid_leave';
+                      const dateLabel = formatLocalizedDate(entry.date, false, language);
                       return (
                         <tr
                           key={entry.id}
@@ -751,8 +826,8 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                               : ''
                           }
                         >
-                          <td className="py-3 pr-3 font-medium text-[#2A302D] dark:text-[#F5F3EE] whitespace-nowrap">
-                            {formatTurkishDate(entry.date)}
+                          <td className="py-3 pe-3 font-medium text-[#2A302D] dark:text-[#F5F3EE] whitespace-nowrap">
+                            {dateLabel}
                           </td>
                           <td className="py-3 px-3 whitespace-nowrap">
                             <span className="inline-flex items-center gap-2 text-xs font-medium text-[#17221B] dark:text-[#F4F7F5]">
@@ -762,13 +837,13 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                               {info.label}
                             </span>
                           </td>
-                          <td className="py-3 px-3 text-right font-mono text-xs text-[#77827B] dark:text-[#929B95] tabular-nums whitespace-nowrap">
+                          <td className="py-3 px-3 text-end font-mono text-xs text-[#77827B] dark:text-[#929B95] tabular-nums whitespace-nowrap">
                             {isLeaveEntry
                               ? '—'
-                              : formatDuration(entry.calculatedDurationMinutes)}
+                              : formatDuration(entry.calculatedDurationMinutes, language)}
                           </td>
                           <td
-                            className={`py-3 px-3 text-right font-mono text-xs font-bold tabular-nums whitespace-nowrap ${
+                            className={`py-3 px-3 text-end font-mono text-xs font-bold tabular-nums whitespace-nowrap ${
                               entry.estimatedEarnings < 0
                                 ? 'text-red-600 dark:text-red-400'
                                 : entry.estimatedEarnings > 0
@@ -776,26 +851,30 @@ export const MonthlyCalendarGrid: React.FC<MonthlyCalendarGridProps> = ({
                                 : 'text-[#77827B] dark:text-[#929B95]'
                             }`}
                           >
-                            {entry.estimatedEarnings !== 0
-                              ? `${entry.estimatedEarnings > 0 ? '+' : ''}${formatCurrency(
-                                  entry.estimatedEarnings,
-                                  currency
-                                )}`
-                              : '—'}
+                            {entry.estimatedEarnings !== 0 ? (
+                              <span dir="ltr">
+                                {entry.estimatedEarnings > 0 ? '+' : ''}
+                                {formatCurrency(entry.estimatedEarnings, currency, 0, language)}
+                              </span>
+                            ) : (
+                              '—'
+                            )}
                           </td>
-                          <td className="py-3 pl-3 text-xs text-[#77827B] dark:text-[#929B95] max-w-[180px] truncate">
+                          <td className="py-3 ps-3 text-xs text-[#77827B] dark:text-[#929B95] max-w-[180px] truncate">
                             {entry.notes || '—'}
                           </td>
                           {onDeleteEntry && (
-                            <td className="py-2 pl-3 text-right whitespace-nowrap">
+                            <td className="py-2 ps-3 text-end whitespace-nowrap">
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onDeleteEntry(entry);
                                 }}
-                                aria-label={`${formatTurkishDate(entry.date)} kaydını sil`}
-                                title="Kaydı sil"
+                                aria-label={formatTemplate(t.calendar.deleteEntryAria, {
+                                  date: dateLabel,
+                                })}
+                                title={t.calendar.deleteEntryTitle}
                                 className="min-h-[34px] min-w-[34px] inline-flex items-center justify-center rounded-xl text-red-600/80 dark:text-red-400/80 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors"
                               >
                                 <Trash2 className="w-4 h-4" />

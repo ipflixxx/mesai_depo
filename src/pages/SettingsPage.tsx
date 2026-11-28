@@ -4,6 +4,8 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
+  Globe,
+  Megaphone,
   Moon,
   RefreshCw,
   RotateCcw,
@@ -16,6 +18,7 @@ import { MesaiAlarmSection } from '../components/MesaiAlarmSection';
 import { MesaiWordmark } from '../components/MesaiWordmark';
 import { NumericInput, parseLocaleNumber } from '../components/NumericInput';
 import { useMesai } from '../context/MesaiContext';
+import { AppLanguage, SUPPORTED_LANGUAGES, formatTemplate } from '../i18n';
 import {
   CurrencyCode,
   OvertimeCalculationMode,
@@ -42,6 +45,9 @@ export const SettingsPage: React.FC = () => {
     updateSettings,
     restoreBackup,
     resetAllData,
+    language,
+    t,
+    setLanguage,
   } = useMesai();
 
   const [form, setForm] = useState(settings);
@@ -86,7 +92,7 @@ export const SettingsPage: React.FC = () => {
     const parsedWk = parseLocaleNumber(numericDrafts.weekendMultiplier);
 
     if (parsedSalary === null || parsedSalary < 0) {
-      setSaveError('Lütfen geçerli bir aylık maaş tutarı girin.');
+      setSaveError(t.settings.errors.invalidSalary);
       return;
     }
     if (
@@ -95,36 +101,37 @@ export const SettingsPage: React.FC = () => {
       parsedPayDay < 1 ||
       parsedPayDay > 31
     ) {
-      setSaveError('Ödeme günü 1 ile 31 arasında olmalıdır.');
+      setSaveError(t.settings.errors.paymentDayRange);
       return;
     }
     if (parsedDays === null || !Number.isInteger(parsedDays) || parsedDays < 1 || parsedDays > 7) {
-      setSaveError('Haftalık çalışma günü 1 ile 7 arasında olmalıdır.');
+      setSaveError(t.settings.errors.weeklyDaysRange);
       return;
     }
     if (parsedDaily === null || parsedDaily < 1 || parsedDaily > 24) {
-      setSaveError('Günlük çalışma süresi 1 ile 24 saat arasında olmalıdır.');
+      setSaveError(t.settings.errors.dailyHoursRange);
       return;
     }
     if (parsedWeekly === null || parsedWeekly < 1 || parsedWeekly > 100) {
-      setSaveError('Haftalık normal saat 1 ile 100 arasında olmalıdır.');
+      setSaveError(t.settings.errors.weeklyHoursRange);
       return;
     }
     if (parsedBreak === null || parsedBreak < 0 || parsedBreak > 240) {
-      setSaveError('Mola süresi 0 ile 240 dakika arasında olmalıdır.');
+      setSaveError(t.settings.errors.breakRange);
       return;
     }
     if (parsedOt === null || parsedOt < 1) {
-      setSaveError('Fazla mesai çarpanı en az 1.0 olmalıdır.');
+      setSaveError(t.settings.errors.otMultiplierMin);
       return;
     }
     if (parsedWk === null || parsedWk < 1) {
-      setSaveError('Hafta sonu çarpanı en az 1.0 olmalıdır.');
+      setSaveError(t.settings.errors.wkMultiplierMin);
       return;
     }
 
     await updateSettings({
       ...form,
+      language: settings.language,
       themeMode: settings.themeMode,
       alarm: settings.alarm,
       monthlySalary: parsedSalary,
@@ -136,7 +143,7 @@ export const SettingsPage: React.FC = () => {
       overtimeMultiplier: parsedOt,
       weekendMultiplier: parsedWk,
     });
-    setSavedNotice('Ayarlar kaydedildi ve kayıtlar güncellendi.');
+    setSavedNotice(t.settings.savedSuccess);
     setTimeout(() => setSavedNotice(null), 3000);
   };
 
@@ -145,12 +152,20 @@ export const SettingsPage: React.FC = () => {
     await updateSettings({ themeMode: mode });
   };
 
+  const handleLanguageChange = async (nextLang: AppLanguage) => {
+    setForm((prev) => ({ ...prev, language: nextLang }));
+    await setLanguage(nextLang);
+  };
+
   const handleRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       const text = await file.text();
-      const { settings: nextSettings, entries: nextEntries } = parseAndValidateBackup(text);
+      const { settings: nextSettings, entries: nextEntries } = parseAndValidateBackup(
+        text,
+        language
+      );
       await restoreBackup(nextSettings, nextEntries);
       setForm(nextSettings);
       setNumericDrafts({
@@ -166,12 +181,12 @@ export const SettingsPage: React.FC = () => {
       });
       setRestoreStatus({
         type: 'success',
-        message: `${nextEntries.length} mesai kaydı başarıyla geri yüklendi.`,
+        message: formatTemplate(t.settings.restoreSuccess, { count: nextEntries.length }),
       });
     } catch (err) {
       setRestoreStatus({
         type: 'error',
-        message: err instanceof Error ? err.message : 'Yedek geri yüklenemedi.',
+        message: err instanceof Error ? err.message : t.settings.restoreFailed,
       });
     } finally {
       e.target.value = '';
@@ -180,7 +195,7 @@ export const SettingsPage: React.FC = () => {
 
   const handlePDFReport = () => {
     const now = new Date();
-    exportMonthlyPDFReport(entries, settings, now.getFullYear(), now.getMonth());
+    exportMonthlyPDFReport(entries, settings, now.getFullYear(), now.getMonth(), language);
   };
 
   const handleCheckUpdate = async () => {
@@ -189,14 +204,16 @@ export const SettingsPage: React.FC = () => {
     if (res.hasUpdate) {
       setUpdateCheckMessage(
         res.manifest
-          ? `Yeni sürüm bulundu: v${res.manifest.versionName}`
-          : 'Google Play üzerinde yeni sürüm hazır.'
+          ? formatTemplate(t.settings.newVersionFound, { version: res.manifest.versionName })
+          : t.settings.playUpdateAvailable
       );
       openUpdateModal();
     } else if (res.error) {
       setUpdateCheckMessage(res.error);
     } else {
-      setUpdateCheckMessage(`Uygulamanız güncel (v${res.currentVersionName}).`);
+      setUpdateCheckMessage(
+        formatTemplate(t.settings.upToDate, { version: res.currentVersionName })
+      );
     }
   };
 
@@ -212,12 +229,59 @@ export const SettingsPage: React.FC = () => {
     <div className="space-y-6">
       <header>
         <h1 className="text-xl sm:text-2xl font-bold text-[#17221B] dark:text-[#F4F7F5] tracking-tight">
-          Ayarlar
+          {t.settings.title}
         </h1>
         <p className="text-xs text-[#77827B] dark:text-[#929B95]">
-          Maaş, çalışma düzeni, görünüm ve veri yedekleme tercihlerin
+          {t.settings.subtitle}
         </p>
       </header>
+
+      {/* Dil Seçimi */}
+      <section
+        aria-label={t.settings.languageTitle}
+        className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-4 sm:p-6 space-y-4"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-[#159B61] dark:text-[#39D98A] shrink-0" />
+              <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
+                {t.settings.languageTitle}
+              </h2>
+            </div>
+            <p className="mt-1 text-xs text-[#77827B] dark:text-[#929B95] leading-relaxed">
+              {t.settings.languageDesc}
+            </p>
+          </div>
+          {!settings.language && (
+            <span className="shrink-0 rounded-xl bg-[#159B61]/10 dark:bg-[#39D98A]/12 px-2.5 py-1 text-[11px] font-semibold text-[#159B61] dark:text-[#39D98A]">
+              {t.settings.languageSystemAuto}
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {SUPPORTED_LANGUAGES.map((langMeta) => {
+            const active = language === langMeta.code;
+            return (
+              <button
+                key={langMeta.code}
+                type="button"
+                aria-pressed={active}
+                onClick={() => void handleLanguageChange(langMeta.code)}
+                className={`min-h-[46px] rounded-2xl px-3 py-2 border flex items-center justify-between gap-2 text-start transition-colors ${
+                  active
+                    ? 'border-[#159B61] dark:border-[#39D98A] bg-[#159B61]/10 dark:bg-[#39D98A]/12 text-[#159B61] dark:text-[#39D98A]'
+                    : 'border-[#CFD8D2] dark:border-white/[0.07] bg-[#EEF2EF]/75 dark:bg-[#222925]/60 text-[#17221B] dark:text-[#F4F7F5] hover:bg-[#EEF2EF] dark:hover:bg-[#222925]'
+                }`}
+              >
+                <span className="text-xs font-semibold truncate">{langMeta.nativeName}</span>
+                {active && <Check className="w-3.5 h-3.5 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       <MesaiAlarmSection />
 
@@ -227,16 +291,21 @@ export const SettingsPage: React.FC = () => {
           <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-                Kişisel bilgiler
+                {t.settings.personalInfo}
               </h2>
-              <span className="font-mono text-xs text-[#159B61] dark:text-[#39D98A] tabular-nums">
-                {formatCurrency(hourlyRate, form.currency, 2)} / sa
+              <span
+                dir="ltr"
+                className="font-mono text-xs text-[#159B61] dark:text-[#39D98A] tabular-nums"
+              >
+                {formatTemplate(t.settings.perHour, {
+                  amount: formatCurrency(hourlyRate, form.currency, 2, language),
+                })}
               </span>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                Kullanıcı adı
+                {t.settings.userName}
               </label>
               <input
                 type="text"
@@ -249,20 +318,20 @@ export const SettingsPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Aylık maaş
+                  {t.settings.monthlySalary}
                 </label>
                 <NumericInput
                   allowDecimal
                   value={numericDrafts.monthlySalary}
                   onChange={(v) => setDraft('monthlySalary', v)}
-                  placeholder="Örn. 35000"
+                  placeholder={t.onboarding.salaryPlaceholder}
                   className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-3.5 font-mono text-sm font-semibold text-[#17221B] dark:text-[#F4F7F5] placeholder:text-[#77827B]/60 dark:placeholder:text-[#929B95]/60 focus:outline-none focus:ring-2 focus:ring-[#159B61] dark:focus:ring-[#39D98A]"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Maaş türü
+                  {t.settings.salaryType}
                 </label>
                 <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07]">
                   {(['net', 'gross'] as SalaryType[]).map((type) => (
@@ -276,7 +345,7 @@ export const SettingsPage: React.FC = () => {
                           : 'text-[#77827B] dark:text-[#929B95]'
                       }`}
                     >
-                      {type === 'net' ? 'Net' : 'Brüt'}
+                      {type === 'net' ? t.common.net : t.common.gross}
                     </button>
                   ))}
                 </div>
@@ -286,7 +355,7 @@ export const SettingsPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Para birimi
+                  {t.settings.currency}
                 </label>
                 <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07]">
                   {(['TRY', 'USD', 'EUR'] as CurrencyCode[]).map((cur) => (
@@ -308,7 +377,7 @@ export const SettingsPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Ödeme günü
+                  {t.settings.paymentDay}
                 </label>
                 <NumericInput
                   value={numericDrafts.paymentDay}
@@ -323,13 +392,13 @@ export const SettingsPage: React.FC = () => {
           {/* Çalışma Düzeni */}
           <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-4">
             <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-              Çalışma düzeni
+              {t.settings.workSchedule}
             </h2>
 
             <div className="grid grid-cols-3 gap-2.5">
               <div>
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Haftalık gün
+                  {t.settings.weeklyDays}
                 </label>
                 <NumericInput
                   value={numericDrafts.weeklyWorkDays}
@@ -341,7 +410,7 @@ export const SettingsPage: React.FC = () => {
 
               <div>
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Günlük saat
+                  {t.settings.dailyHours}
                 </label>
                 <NumericInput
                   allowDecimal
@@ -354,7 +423,7 @@ export const SettingsPage: React.FC = () => {
 
               <div>
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Haftalık saat
+                  {t.settings.weeklyHours}
                 </label>
                 <NumericInput
                   allowDecimal
@@ -369,10 +438,11 @@ export const SettingsPage: React.FC = () => {
             <div className="grid grid-cols-3 gap-2.5">
               <div>
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Başlangıç
+                  {t.settings.start}
                 </label>
                 <input
                   type="time"
+                  dir="ltr"
                   value={form.workStartTime}
                   onChange={(e) => setForm({ ...form, workStartTime: e.target.value })}
                   className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
@@ -380,10 +450,11 @@ export const SettingsPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Bitiş
+                  {t.settings.end}
                 </label>
                 <input
                   type="time"
+                  dir="ltr"
                   value={form.workEndTime}
                   onChange={(e) => setForm({ ...form, workEndTime: e.target.value })}
                   className="w-full min-h-[44px] rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] px-2.5 font-mono text-sm text-[#17221B] dark:text-[#F4F7F5]"
@@ -391,7 +462,7 @@ export const SettingsPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Mola (dk)
+                  {t.settings.breakMin}
                 </label>
                 <NumericInput
                   value={numericDrafts.breakMinutes}
@@ -405,7 +476,7 @@ export const SettingsPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Fazla mesai çarpanı
+                  {t.settings.otMultiplier}
                 </label>
                 <NumericInput
                   allowDecimal
@@ -417,7 +488,7 @@ export const SettingsPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                  Hafta sonu çarpanı
+                  {t.settings.wkMultiplier}
                 </label>
                 <NumericInput
                   allowDecimal
@@ -431,13 +502,13 @@ export const SettingsPage: React.FC = () => {
 
             <div>
               <label className="block text-[11px] font-medium text-[#77827B] dark:text-[#929B95] mb-1.5">
-                Fazla mesai hesaplama esası
+                {t.settings.otCalcBasis}
               </label>
               <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07]">
                 {(
                   [
-                    { id: 'daily', label: 'Günlük hedef' },
-                    { id: 'weekly', label: 'Haftalık hedef' },
+                    { id: 'daily', label: t.settings.dailyTarget },
+                    { id: 'weekly', label: t.settings.weeklyTarget },
                   ] as const
                 ).map((m) => (
                   <button
@@ -473,14 +544,14 @@ export const SettingsPage: React.FC = () => {
             </div>
           ) : (
             <span className="text-xs text-[#77827B] dark:text-[#929B95]">
-              Değişiklikler tüm kayıtların kazanç hesaplamasına otomatik uygulanır.
+              {t.settings.autoRecalcNote}
             </span>
           )}
           <button
             type="submit"
             className="min-h-[46px] px-6 rounded-2xl bg-[#159B61] dark:bg-[#39D98A] text-white dark:text-[#101211] font-semibold text-sm transition-transform active:scale-[0.98] whitespace-nowrap"
           >
-            Bilgileri Kaydet
+            {t.settings.saveInfoBtn}
           </button>
         </div>
       </form>
@@ -489,14 +560,14 @@ export const SettingsPage: React.FC = () => {
         {/* Görünüm */}
         <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-4">
           <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-            Görünüm
+            {t.settings.appearance}
           </h2>
           <div className="grid grid-cols-3 gap-2">
             {(
               [
-                { id: 'dark', label: 'Koyu', icon: Moon },
-                { id: 'light', label: 'Açık', icon: Sun },
-                { id: 'system', label: 'Sistem', icon: Smartphone },
+                { id: 'dark', label: t.settings.themeDark, icon: Moon },
+                { id: 'light', label: t.settings.themeLight, icon: Sun },
+                { id: 'system', label: t.settings.themeSystem, icon: Smartphone },
               ] as const
             ).map((opt) => {
               const Icon = opt.icon;
@@ -523,17 +594,17 @@ export const SettingsPage: React.FC = () => {
         {/* Veri Yönetimi */}
         <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-4">
           <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-            Veri yönetimi
+            {t.settings.dataManagement}
           </h2>
 
           <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              onClick={() => exportEntriesToCSV(entries, settings)}
+              onClick={() => exportEntriesToCSV(entries, settings, language)}
               className="min-h-[46px] px-3.5 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5] flex items-center justify-center gap-2 hover:opacity-90"
             >
               <FileSpreadsheet className="w-4 h-4 text-[#159B61] dark:text-[#39D98A] shrink-0" />
-              <span>CSV Dışa Aktar</span>
+              <span>{t.settings.exportCsv}</span>
             </button>
 
             <button
@@ -542,7 +613,7 @@ export const SettingsPage: React.FC = () => {
               className="min-h-[46px] px-3.5 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5] flex items-center justify-center gap-2 hover:opacity-90"
             >
               <FileText className="w-4 h-4 text-[#159B61] dark:text-[#39D98A] shrink-0" />
-              <span>PDF Raporu</span>
+              <span>{t.settings.pdfReport}</span>
             </button>
 
             <button
@@ -551,7 +622,7 @@ export const SettingsPage: React.FC = () => {
               className="min-h-[46px] px-3.5 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5] flex items-center justify-center gap-2 hover:opacity-90"
             >
               <Download className="w-4 h-4 shrink-0" />
-              <span>JSON Yedekle</span>
+              <span>{t.settings.jsonBackup}</span>
             </button>
 
             <button
@@ -560,7 +631,7 @@ export const SettingsPage: React.FC = () => {
               className="min-h-[46px] px-3.5 rounded-2xl bg-[#EEF2EF] dark:bg-[#222925] border border-[#CFD8D2] dark:border-white/[0.07] text-xs font-semibold text-[#17221B] dark:text-[#F4F7F5] flex items-center justify-center gap-2 hover:opacity-90"
             >
               <Upload className="w-4 h-4 shrink-0" />
-              <span>JSON Geri Yükle</span>
+              <span>{t.settings.jsonRestore}</span>
             </button>
             <input
               ref={fileInputRef}
@@ -589,7 +660,7 @@ export const SettingsPage: React.FC = () => {
       <section className="rounded-3xl bg-[#FFFFFF] dark:bg-[#191E1B] border border-[#CBD5CF] dark:border-white/[0.08] p-5 sm:p-6 space-y-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold text-[#17221B] dark:text-[#F4F7F5]">
-            Uygulama
+            {t.settings.appSection}
           </h2>
           <MesaiWordmark size="xs" />
         </div>
@@ -597,15 +668,17 @@ export const SettingsPage: React.FC = () => {
         <div className="divide-y divide-[#D7E0DA] dark:divide-white/[0.06] text-sm">
           <div className="py-3 flex items-start justify-between gap-4">
             <div>
-              <div className="font-medium text-[#17221B] dark:text-[#F4F7F5]">Hakkında</div>
+              <div className="font-medium text-[#17221B] dark:text-[#F4F7F5]">
+                {t.settings.aboutTitle}
+              </div>
               <p className="text-xs text-[#77827B] dark:text-[#929B95] mt-0.5">
-                MESAİ Android —{' '}
-                {runtimeInfo.channel === 'play'
-                  ? 'Google Play Dağıtımı'
-                  : 'Doğrudan Dağıtım (APK)'}
+                {runtimeInfo.channel === 'play' ? t.settings.aboutPlay : t.settings.aboutDirect}
               </p>
             </div>
-            <span className="font-mono text-xs text-[#77827B] dark:text-[#929B95] shrink-0 tabular-nums">
+            <span
+              dir="ltr"
+              className="font-mono text-xs text-[#77827B] dark:text-[#929B95] shrink-0 tabular-nums"
+            >
               v{runtimeInfo.versionName} ({runtimeInfo.versionCode})
             </span>
           </div>
@@ -613,9 +686,23 @@ export const SettingsPage: React.FC = () => {
           <div className="py-3 flex items-start gap-3">
             <ShieldCheck className="w-4 h-4 text-[#159B61] dark:text-[#39D98A] mt-0.5 shrink-0" />
             <div>
-              <div className="font-medium text-[#17221B] dark:text-[#F4F7F5]">Gizlilik</div>
+              <div className="font-medium text-[#17221B] dark:text-[#F4F7F5]">
+                {t.settings.privacyTitle}
+              </div>
               <p className="text-xs text-[#77827B] dark:text-[#929B95] mt-0.5 leading-relaxed">
-                Maaş bilgileriniz ve tüm mesai kayıtlarınız yalnızca bu cihazın yerel deposunda (IndexedDB ve LocalStorage) saklanır; dış sunuculara gönderilmez.
+                {t.settings.privacyBody}
+              </p>
+            </div>
+          </div>
+
+          <div className="py-3 flex items-start gap-3">
+            <Megaphone className="w-4 h-4 text-[#77827B] dark:text-[#929B95] mt-0.5 shrink-0" />
+            <div>
+              <div className="font-medium text-[#17221B] dark:text-[#F4F7F5]">
+                {t.settings.adsTitle}
+              </div>
+              <p className="text-xs text-[#77827B] dark:text-[#929B95] mt-0.5 leading-relaxed">
+                {t.settings.adsBody}
               </p>
             </div>
           </div>
@@ -637,10 +724,10 @@ export const SettingsPage: React.FC = () => {
             <RefreshCw className={`w-4 h-4 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
             <span>
               {isCheckingUpdate
-                ? 'Sürüm Kontrol Ediliyor...'
+                ? t.settings.checkingVersion
                 : updateResult?.hasUpdate
-                ? 'Yeni Güncellemeyi Görüntüle'
-                : 'Güncellemeleri Denetle'}
+                ? t.settings.viewNewUpdate
+                : t.settings.checkUpdates}
             </span>
           </button>
 
@@ -661,7 +748,7 @@ export const SettingsPage: React.FC = () => {
           >
             <RotateCcw className="w-4 h-4" />
             <span>
-              {confirmReset ? 'Onayla: Tüm Verileri Sıfırla' : 'Tüm Verileri Sıfırla'}
+              {confirmReset ? t.settings.confirmReset : t.settings.resetAllData}
             </span>
           </button>
         </div>

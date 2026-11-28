@@ -98,6 +98,31 @@ public class MesaiAlarmPlugin extends Plugin {
             }
         }
 
+        JSObject notifStrings = call.getObject("notificationStrings");
+        if (notifStrings != null) {
+            String[] keys = new String[] {
+                "channelName",
+                "channelDesc",
+                "fallbackChannelName",
+                "fallbackChannelDesc",
+                "titleReminder",
+                "bodyReminder",
+                "titleTest",
+                "bodyTestRinging",
+                "titleTestDone",
+                "bodyTestDone",
+                "bodyTestFallback",
+                "stopAction"
+            };
+            for (String key : keys) {
+                String val = notifStrings.getString(key);
+                if (val != null && !val.trim().isEmpty()) {
+                    MesaiAlarmPrefs.saveNotificationString(getContext(), key, val);
+                }
+            }
+            MesaiAlarmService.ensureNotificationChannel(getContext());
+        }
+
         MesaiAlarmPrefs.saveConfig(getContext(), enabled, hour, minute, days);
         MesaiAlarmScheduler.rescheduleNextAlarm(getContext());
         call.resolve(buildStatusPayload(getContext()));

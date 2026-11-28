@@ -1,6 +1,13 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { APP_ID, APP_VERSION_CODE, APP_VERSION_NAME, DEFAULT_DISTRIBUTION_CHANNEL } from '../config/appInfo';
 import { useTheme } from '../hooks/useTheme';
+import {
+  AppLanguage,
+  TranslationSchema,
+  getLanguageMeta,
+  getTranslations,
+  resolveLanguage,
+} from '../i18n';
 import {
   checkForAndroidUpdate,
   getAppRuntimeInfo,
@@ -33,6 +40,11 @@ interface MesaiContextValue {
   settings: UserSettings;
   entries: WorkEntry[];
   isHydrating: boolean;
+  language: AppLanguage;
+  locale: string;
+  isRtl: boolean;
+  t: TranslationSchema;
+  setLanguage: (lang: AppLanguage) => Promise<void>;
   modalState: EntryModalState;
   pendingDeleteEntry: WorkEntry | null;
   runtimeInfo: AppRuntimeInfo;
@@ -82,7 +94,18 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const initialUpdateCheckedRef = useRef(false);
 
+  const language = useMemo(() => resolveLanguage(settings.language), [settings.language]);
+  const languageMeta = useMemo(() => getLanguageMeta(language), [language]);
+  const isRtl = languageMeta.dir === 'rtl';
+  const t = useMemo(() => getTranslations(language), [language]);
+
   useTheme(settings.themeMode);
+
+  useEffect(() => {
+    document.documentElement.lang = languageMeta.code;
+    document.documentElement.dir = languageMeta.dir;
+    document.title = t.meta.appTitle;
+  }, [languageMeta.code, languageMeta.dir, t.meta.appTitle]);
 
   useEffect(() => {
     let active = true;
@@ -102,35 +125,41 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  const initialAlarmSyncedRef = useRef(false);
+  const lastSyncedAlarmSignatureRef = useRef<string>('');
 
   useEffect(() => {
     if (isHydrating) return;
     const uniqueDates = Array.from(new Set(entries.map((e) => e.date)));
     void syncNativeRecordedDates(uniqueDates);
-    if (!initialAlarmSyncedRef.current && settings.alarm) {
-      initialAlarmSyncedRef.current = true;
-      void saveNativeAlarmConfig(settings.alarm, uniqueDates);
-    }
-  }, [entries, isHydrating, settings.alarm]);
-
-  const checkForUpdates = useCallback(async (silent = false): Promise<UpdateCheckResult> => {
-    setIsCheckingUpdate(true);
-    try {
-      const info = await getAppRuntimeInfo();
-      setRuntimeInfo(info);
-      const res = await checkForAndroidUpdate(info);
-      setUpdateResult(res);
-      if (res.hasUpdate) {
-        setIsUpdateModalOpen(true);
-      } else if (!silent && res.error) {
-        // Keep error accessible via updateResult.error for manual check UI
+    if (settings.alarm) {
+      const sig = `${language}:${JSON.stringify(settings.alarm)}`;
+      if (lastSyncedAlarmSignatureRef.current !== sig) {
+        lastSyncedAlarmSignatureRef.current = sig;
+        void saveNativeAlarmConfig(settings.alarm, uniqueDates, language);
       }
-      return res;
-    } finally {
-      setIsCheckingUpdate(false);
     }
-  }, []);
+  }, [entries, isHydrating, settings.alarm, language]);
+
+  const checkForUpdates = useCallback(
+    async (silent = false): Promise<UpdateCheckResult> => {
+      setIsCheckingUpdate(true);
+      try {
+        const info = await getAppRuntimeInfo();
+        setRuntimeInfo(info);
+        const res = await checkForAndroidUpdate(info, language);
+        setUpdateResult(res);
+        if (res.hasUpdate) {
+          setIsUpdateModalOpen(true);
+        } else if (!silent && res.error) {
+          // Keep error accessible via updateResult.error for manual check UI
+        }
+        return res;
+      } finally {
+        setIsCheckingUpdate(false);
+      }
+    },
+    [language]
+  );
 
   useEffect(() => {
     if (isHydrating || initialUpdateCheckedRef.current) return;
@@ -190,6 +219,15 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ]);
     },
     [settings, entries]
+  );
+
+  const setLanguage = useCallback(
+    async (nextLang: AppLanguage) => {
+      const nextSettings: UserSettings = { ...settings, language: nextLang };
+      setSettings(nextSettings);
+      await storageService.saveSettings(nextSettings);
+    },
+    [settings]
   );
 
   const completeOnboarding = useCallback(async (initialSettings: UserSettings) => {
@@ -301,7 +339,8 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const dates = Array.from(new Set(recalculated.map((e) => e.date)));
       await syncNativeRecordedDates(dates);
       if (cleanSettings.alarm) {
-        await saveNativeAlarmConfig(cleanSettings.alarm, dates);
+        const resolved = resolveLanguage(cleanSettings.language);
+        await saveNativeAlarmConfig(cleanSettings.alarm, dates, resolved);
       }
     },
     []
@@ -309,10 +348,12 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const resetAllData = useCallback(async () => {
     await storageService.clearAll();
-    setSettings({ ...DEFAULT_SETTINGS });
+    const freshSettings: UserSettings = { ...DEFAULT_SETTINGS };
+    const detectedLang = resolveLanguage(undefined);
+    setSettings(freshSettings);
     setEntries([]);
     await syncNativeRecordedDates([]);
-    await saveNativeAlarmConfig(DEFAULT_SETTINGS.alarm!, []);
+    await saveNativeAlarmConfig(DEFAULT_SETTINGS.alarm!, [], detectedLang);
   }, []);
 
   return (
@@ -321,6 +362,11 @@ export const MesaiProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         settings,
         entries,
         isHydrating,
+        language,
+        locale: languageMeta.locale,
+        isRtl,
+        t,
+        setLanguage,
         modalState,
         pendingDeleteEntry,
         runtimeInfo,

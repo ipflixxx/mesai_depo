@@ -6,14 +6,6 @@ import { AndroidUpdateModal } from './AndroidUpdateModal';
 import { DeleteEntryConfirmModal } from './DeleteEntryConfirmModal';
 import { WorkEntryModal } from './WorkEntryModal';
 
-const NAV_ITEMS = [
-  { to: '/', label: 'Ana Sayfa', icon: Home, end: true },
-  { to: '/istatistik', label: 'İstatistik', icon: BarChart3, end: false },
-  { to: '/takvim', label: 'Kazanç', icon: Wallet, end: false },
-  { to: '/hesaplama', label: 'Hesaplama', icon: Calculator, end: false },
-  { to: '/ayarlar', label: 'Ayarlar', icon: Settings, end: false },
-];
-
 declare global {
   interface Window {
     __mesaiHandleAndroidBack?: () => 'handled' | 'blocked' | 'exit';
@@ -22,6 +14,7 @@ declare global {
 
 export const AppShell: React.FC = () => {
   const {
+    t,
     runtimeInfo,
     updateResult,
     isUpdateModalOpen,
@@ -33,6 +26,14 @@ export const AppShell: React.FC = () => {
   } = useMesai();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const navItems = [
+    { to: '/', label: t.nav.home, icon: Home, end: true },
+    { to: '/istatistik', label: t.nav.stats, icon: BarChart3, end: false },
+    { to: '/takvim', label: t.nav.earnings, icon: Wallet, end: false },
+    { to: '/hesaplama', label: t.nav.calculator, icon: Calculator, end: false },
+    { to: '/ayarlar', label: t.nav.settings, icon: Settings, end: false },
+  ];
 
   useEffect(() => {
     window.__mesaiHandleAndroidBack = () => {
@@ -86,13 +87,13 @@ export const AppShell: React.FC = () => {
         </main>
       </div>
 
-      {/* Bottom Fixed Tab Bar (5 tabs: Ana Sayfa > İstatistik > Kazanç > Hesaplama > Ayarlar) */}
+      {/* Bottom Fixed Tab Bar */}
       <nav
-        aria-label="Ana gezinme"
+        aria-label={t.nav.ariaLabel}
         className="fixed bottom-0 left-0 right-0 z-40 bg-[#FFFFFF]/92 dark:bg-[#191E1B]/92 backdrop-blur-md border-t border-[#CBD5CF] dark:border-white/[0.07] pb-safe"
       >
         <div className="grid grid-cols-5 gap-0.5 sm:gap-1 h-16 max-w-2xl mx-auto px-1.5 sm:px-2">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
@@ -110,7 +111,7 @@ export const AppShell: React.FC = () => {
                 {({ isActive }) => (
                   <>
                     <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.4]' : 'stroke-[1.9]'}`} />
-                    <span className="text-[10px] sm:text-[11px] font-medium tracking-tight whitespace-nowrap">
+                    <span className="text-[10px] sm:text-[11px] font-medium tracking-tight whitespace-nowrap truncate max-w-full">
                       {item.label}
                     </span>
                   </>

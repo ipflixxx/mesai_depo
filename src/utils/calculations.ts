@@ -1,3 +1,4 @@
+import { AppLanguage, formatTemplate, getLanguageMeta, getTranslations } from '../i18n';
 import {
   CalculationPreview,
   CurrencyCode,
@@ -17,6 +18,10 @@ export const WORK_TYPE_LABELS: Record<WorkType, string> = {
   paid_leave: 'İzin',
   unpaid_leave: 'Ücretsiz izin',
 };
+
+export function getWorkTypeLabel(workType: WorkType, lang: AppLanguage = 'tr'): string {
+  return getTranslations(lang).workTypes[workType];
+}
 
 export const CURRENCY_CONFIG: Record<CurrencyCode, { symbol: string; locale: string }> = {
   TRY: { symbol: '₺', locale: 'tr-TR' },
@@ -96,7 +101,8 @@ export function calculateShiftMinutes(
   endTime: string,
   breakMinutes: number,
   workType: WorkType,
-  dailyWorkHours: number
+  dailyWorkHours: number,
+  lang: AppLanguage = 'tr'
 ): {
   totalSpanMinutes: number;
   netMinutes: number;
@@ -104,6 +110,7 @@ export function calculateShiftMinutes(
   isValid: boolean;
   validationError?: string;
 } {
+  const t = getTranslations(lang);
   if (workType === 'paid_leave' || workType === 'unpaid_leave') {
     const startMin = timeToMinutes(startTime);
     const endMin = timeToMinutes(endTime);
@@ -131,7 +138,7 @@ export function calculateShiftMinutes(
       netMinutes: 0,
       isOvernight: false,
       isValid: false,
-      validationError: 'Başlangıç ve bitiş saati aynı olamaz.',
+      validationError: t.entryModal.errSameStartEnd,
     };
   }
 
@@ -146,7 +153,7 @@ export function calculateShiftMinutes(
       netMinutes: 0,
       isOvernight,
       isValid: false,
-      validationError: 'Mola süresi negatif olamaz.',
+      validationError: t.entryModal.errNegativeBreak,
     };
   }
 
@@ -156,7 +163,7 @@ export function calculateShiftMinutes(
       netMinutes: 0,
       isOvernight,
       isValid: false,
-      validationError: 'Mola süresi toplam çalışma süresinden uzun veya eşit olamaz.',
+      validationError: t.entryModal.errBreakTooLong,
     };
   }
 
@@ -200,7 +207,8 @@ export function resolveOvertimeMultiplier(
 export function calculateEntryPreview(
   input: WorkEntryInput,
   settings: UserSettings,
-  existingEntries: WorkEntry[]
+  existingEntries: WorkEntry[],
+  lang: AppLanguage = 'tr'
 ): CalculationPreview {
   const hourlyRate = calculateHourlyRate(settings);
   const shift = calculateShiftMinutes(
@@ -208,7 +216,8 @@ export function calculateEntryPreview(
     input.endTime,
     input.breakMinutes,
     input.workType,
-    settings.dailyWorkHours
+    settings.dailyWorkHours,
+    lang
   );
 
   const planned = isFutureDate(input.date);
@@ -404,7 +413,8 @@ export function recalculateAllEntries(
  */
 export function detectEntryOverlaps(
   input: WorkEntryInput,
-  existingEntries: WorkEntry[]
+  existingEntries: WorkEntry[],
+  lang: AppLanguage = 'tr'
 ): OverlapConflict[] {
   if (input.workType === 'paid_leave' || input.workType === 'unpaid_leave') {
     return [];
@@ -423,6 +433,7 @@ export function detectEntryOverlaps(
     return [dayEpoch + s, endAbs];
   };
 
+  const t = getTranslations(lang);
   const [candStart, candEnd] = toAbsoluteInterval(input.date, input.startTime, input.endTime);
   const conflicts: OverlapConflict[] = [];
 
@@ -434,7 +445,12 @@ export function detectEntryOverlaps(
     if (candStart < exEnd && candEnd > exStart) {
       conflicts.push({
         conflictingEntry: existing,
-        message: `${existing.date} tarihindeki ${existing.startTime}–${existing.endTime} (${WORK_TYPE_LABELS[existing.workType]}) kaydıyla çakışıyor.`,
+        message: formatTemplate(t.entryModal.overlapMessage, {
+          date: existing.date,
+          start: existing.startTime,
+          end: existing.endTime,
+          type: t.workTypes[existing.workType],
+        }),
       });
     }
   }
@@ -523,9 +539,15 @@ export function summarizeEntries(entries: WorkEntry[]): PeriodSummary {
   };
 }
 
-export function formatCurrency(amount: number, currency: CurrencyCode, decimals = 0): string {
+export function formatCurrency(
+  amount: number,
+  currency: CurrencyCode,
+  decimals = 0,
+  lang: AppLanguage = 'tr'
+): string {
   const safe = Number.isFinite(amount) ? amount : 0;
-  const formatted = new Intl.NumberFormat('tr-TR', {
+  const locale = getLanguageMeta(lang).locale;
+  const formatted = new Intl.NumberFormat(locale, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(Math.round(safe * Math.pow(10, decimals)) / Math.pow(10, decimals));
@@ -534,47 +556,73 @@ export function formatCurrency(amount: number, currency: CurrencyCode, decimals 
   return `${formatted} ${symbol}`;
 }
 
-export function formatCompactCurrency(amount: number, currency: CurrencyCode): string {
+export function formatCompactCurrency(
+  amount: number,
+  currency: CurrencyCode,
+  lang: AppLanguage = 'tr'
+): string {
   const safe = Number.isFinite(amount) ? Math.round(amount) : 0;
   const symbol = CURRENCY_CONFIG[currency]?.symbol ?? '₺';
+  const locale = getLanguageMeta(lang).locale;
   const sign = safe > 0 ? '+' : safe < 0 ? '-' : '';
   const abs = Math.abs(safe);
-  const formatted = new Intl.NumberFormat('tr-TR', {
+  const formatted = new Intl.NumberFormat(locale, {
     maximumFractionDigits: 0,
   }).format(abs);
   return `${sign}${formatted}${symbol}`;
 }
 
-export function formatDuration(totalMinutes: number): string {
+export function formatDuration(totalMinutes: number, lang: AppLanguage = 'tr'): string {
   const rounded = Math.max(0, Math.round(totalMinutes));
   const h = Math.floor(rounded / 60);
   const m = rounded % 60;
-  if (h === 0 && m === 0) return '0 sa';
-  if (m === 0) return `${h} sa`;
-  if (h === 0) return `${m} dk`;
-  return `${h} sa ${m} dk`;
+  const { hoursShort, minutesShort } = getTranslations(lang).common;
+  if (h === 0 && m === 0) return `0 ${hoursShort}`;
+  if (m === 0) return `${h} ${hoursShort}`;
+  if (h === 0) return `${m} ${minutesShort}`;
+  return `${h} ${hoursShort} ${m} ${minutesShort}`;
 }
 
-export function formatHoursDecimal(totalMinutes: number): string {
+export function formatHoursDecimal(totalMinutes: number, lang: AppLanguage = 'tr'): string {
   const hours = Math.max(0, totalMinutes) / 60;
-  return `${new Intl.NumberFormat('tr-TR', {
+  const locale = getLanguageMeta(lang).locale;
+  const { hoursShort } = getTranslations(lang).common;
+  return `${new Intl.NumberFormat(locale, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
-  }).format(hours)} sa`;
+  }).format(hours)} ${hoursShort}`;
 }
 
-export function formatTurkishDate(dateStr: string, withYear = false): string {
+export function formatLocalizedDate(
+  dateStr: string,
+  withYear = false,
+  lang: AppLanguage = 'tr'
+): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   const dt = new Date(y, m - 1, d);
-  return new Intl.DateTimeFormat('tr-TR', {
+  const locale = getLanguageMeta(lang).locale;
+  return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'long',
     ...(withYear ? { year: 'numeric' } : {}),
   }).format(dt);
 }
 
-export function formatMonthYear(year: number, monthZeroIndexed: number): string {
+export function formatTurkishDate(
+  dateStr: string,
+  withYear = false,
+  lang: AppLanguage = 'tr'
+): string {
+  return formatLocalizedDate(dateStr, withYear, lang);
+}
+
+export function formatMonthYear(
+  year: number,
+  monthZeroIndexed: number,
+  lang: AppLanguage = 'tr'
+): string {
   const dt = new Date(year, monthZeroIndexed, 1);
-  const raw = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' }).format(dt);
-  return raw.charAt(0).toUpperCase() + raw.slice(1);
+  const locale = getLanguageMeta(lang).locale;
+  const raw = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(dt);
+  return raw.charAt(0).toLocaleUpperCase(locale) + raw.slice(1);
 }

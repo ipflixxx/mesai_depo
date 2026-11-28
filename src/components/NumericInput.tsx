@@ -1,17 +1,26 @@
 import React, { useRef } from 'react';
 
+function normalizeDigits(raw: string): string {
+  return raw
+    .replace(/[\u0660-\u0669]/g, (ch) => String(ch.charCodeAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (ch) => String(ch.charCodeAt(0) - 0x06f0))
+    .replace(/\u066B/g, '.')
+    .replace(/\u066C/g, '');
+}
+
 export function parseLocaleNumber(raw: string): number | null {
-  const normalized = raw.trim().replace(',', '.');
+  const normalized = normalizeDigits(raw).trim().replace(',', '.');
   if (!normalized || normalized === '.') return null;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 function sanitizeNumericInput(raw: string, allowDecimal: boolean): string {
+  const digitsNormalized = normalizeDigits(raw);
   if (!allowDecimal) {
-    return raw.replace(/[^0-9]/g, '');
+    return digitsNormalized.replace(/[^0-9]/g, '');
   }
-  const stripped = raw.replace(/[^0-9.,]/g, '');
+  const stripped = digitsNormalized.replace(/[^0-9.,]/g, '');
   let hasSeparator = false;
   let result = '';
   for (const ch of stripped) {
